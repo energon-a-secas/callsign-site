@@ -1,0 +1,52 @@
+---
+config:
+  theme: base
+  themeVariables:
+    primaryColor: "#0f172a"
+    primaryTextColor: "#e2e8f0"
+    primaryBorderColor: "#0063e5"
+    lineColor: "#38bdf8"
+    secondaryColor: "#1e293b"
+    tertiaryColor: "#1e293b"
+    clusterBkg: "#f0f7ff"
+    clusterBorder: "#bfdbfe"
+    edgeLabelBackground: "#e8f0ff"
+    mainBkg: "#0f172a"
+    nodeBorder: "#0063e5"
+    titleColor: "#1e1b4b"
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif"
+    fontSize: "13px"
+---
+flowchart TB
+    User([User]) --> HTML["index.html\nApp shell: Forge, Garage, Houses"]
+
+    subgraph App["ES Modules"]
+        HTML --> app["app.js\nEntry point"]
+        app --> state["state.js\nSession, hangar, share-link codec"]
+        app --> render["render*.js\nOne module per view"]
+        app --> events["events.js\nUser interactions"]
+        app --> utils["utils.js\nCopy, download, toast"]
+    end
+
+    subgraph Engine["Naming engine (pure functions)"]
+        forge["forge.js\nseed + house + slot + roll -> plate"]
+        houses["houses.js\nOne grammar per manufacturer"]
+        lexicon["lexicon.js\nOriginal word pools"]
+        canon["canon.js\nReal-part collision guard"]
+        slots["slots.js\nParts and weapon classes"]
+        acronym["acronym.js + expand.js\n3 and 4 letter picks, readings"]
+        rng["rng.js\nSeeded hash + PRNG"]
+    end
+
+    render --> forge
+    events --> exporter["export.js\nMarkdown, JSON, text"]
+    exporter --> forge
+    forge --> houses
+    forge --> slots
+    forge --> acronym
+    forge --> rng
+    forge --> canon
+    houses --> lexicon
+
+    state <-->|"callsign:v1"| Storage[("localStorage")]
+    state <-->|"?b= build, ?s= seed"| URL[("Share link")]

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-title" content="Callsign">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="neo-mark" content="on">
+  <title>Callsign | AC6 Codenames for Projects</title>
+  <meta name="description" content="Generate codenames for projects and services in the grammar of AC6 manufacturers, with 3-letter acronyms, seeded rerolls and a whole-build export">
+  <meta property="og:title" content="Callsign | AC6 Codenames for Projects">
+  <meta property="og:description" content="Name a whole system as one AC build: frame parts answer to acronyms, weapons to names, and every house keeps its own grammar">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://callsign.neorgon.com/">
+  <meta property="og:site_name" content="Neorgon">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Callsign | AC6 Codenames for Projects">
+  <meta name="twitter:description" content="Codenames for projects and tools, stamped in the grammar of AC6 manufacturers">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://callsign.neorgon.com/">
+  <meta property="og:locale" content="en_US">
+  <meta name="theme-color" content="#040714">
+  <meta property="og:image" content="https://callsign.neorgon.com/og-preview.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Callsign: codenames in Armored Core part grammar">
+  <meta name="twitter:image" content="https://callsign.neorgon.com/og-preview.jpg">
+  <meta name="neo-repo" content="energon-a-secas/callsign-site">
+  <meta name="neo-version" content="1.0.0">
+  <meta name="neo-updated" content="updated Sep 2026">
+  <!-- Fleet design tokens: canonical, do not redeclare locally (docs/references/new-project-context.md, Design) -->
+  <link rel="stylesheet" href="https://cdn.neorgon.org/v1.0.0/styles/base.css">
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Neorgon Header Kit (vendored; ?header=live swaps CSS to CDN). Keep after style.css, the kit owns the header. -->
+  <script>(function(){var m=location.search.match(/[?&]theme=([\w-]+)/)||document.cookie.match(/(?:^|;\s*)neo_theme=([\w-]+)/);if(m&&m[1]!=='default')document.documentElement.dataset.theme=decodeURIComponent(m[1]);})();</script>
+  <link rel="stylesheet" href="css/neorgon-header.css">
+  <link rel="stylesheet" href="css/neorgon-themes.css">
+  <link rel="stylesheet" href="https://cdn.neorgon.org/v1.0.0/header/season.css">
+  <script defer src="js/neorgon-header.js"></script>
+  <!-- Neorgon Footer Kit (vendored). See packages/neorgon-ui/footer/README.md. -->
+  <link rel="stylesheet" href="css/neorgon-footer.css">
+  <script defer src="js/neorgon-footer.js"></script>
+  <!-- Neorgon Beacon Kit (vendored). Bottom-left correction reporter: it
+       carries page context to balise.neorgon.com in a URL fragment and the
+       visitor writes there. No form on this page and no request from it.
+       See packages/neorgon-ui/beacon/README.md. -->
+  <meta name="beacon-site" content="callsign-site">
+  <link rel="stylesheet" href="css/neorgon-beacon.css">
+  <script defer src="js/neorgon-beacon.js"></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Callsign",
+    "description": "Generate codenames for projects and services in the grammar of AC6 manufacturers, with 3-letter acronyms, seeded rerolls and a whole-build export",
+    "url": "https://callsign.neorgon.com/",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Any",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Neorgon", "url": "https://neorgon.com/" }
+  }
+  </script>
+</head>
+<body>
+
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="header-bar" data-header-mode="app">
+    <div class="header-logo">
+      <a href="./" class="header-title-link">
+        <img src="https://cdn.neorgon.org/v1.0.0/energon-classic-logo.png" class="header-logo-img" alt="">
+        <div class="header-title-wrap">
+          <h1>Callsign</h1>
+          <div class="header-subtitle">Codenames in Armored Core part grammar</div>
+        </div>
+      </a>
+    </div>
+
+    <div class="header-right">
+      <div class="header-actions">
+        <button type="button" class="btn btn--ghost btn--sm" id="shareBtn" data-keep-mobile>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1 1"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1-1"/></svg>
+          <span>Copy link</span>
+        </button>
+      </div>
+
+      <a class="header-home" href="https://neorgon.com/" title="neorgon.com" aria-label="Neorgon home">
+        <svg class="nh-hub-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M12 4.4 18.58 8.2 18.58 15.8 12 19.6 5.42 15.8 5.42 8.2Z" fill="currentColor" stroke="none"/>
+          <g class="nh-orbit">
+            <path d="M2.47 17.50 A11.0 11.0 0 0 1 14.85 1.37" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round"/>
+            <path d="M21.53 6.50 A11.0 11.0 0 0 1 9.15 22.63" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round"/>
+            <circle cx="21.71" cy="6.84" r="1.25" fill="currentColor"/>
+            <circle cx="2.29" cy="17.16" r="1.25" fill="currentColor"/>
+          </g>
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <main id="main">
+    <noscript><p class="noscript">Callsign builds every name in your browser, so it needs JavaScript switched on.</p></noscript>
+
+    <div class="shell">
+      <nav class="shell__rail" aria-label="Views">
+        <button type="button" class="rail-btn" data-view="forge"><span class="rail-btn__no" aria-hidden="true">01</span>Forge</button>
+        <button type="button" class="rail-btn" data-view="garage"><span class="rail-btn__no" aria-hidden="true">02</span>Garage</button>
+        <button type="button" class="rail-btn" data-view="houses"><span class="rail-btn__no" aria-hidden="true">03</span>Houses</button>
+      </nav>
+
+      <div class="shell__main">
+
+        <!-- ── Forge ─────────────────────────────────────────── -->
+        <section id="view-forge" class="section" aria-labelledby="forge-title">
+          <div class="section__titles">
+            <h2 class="section__title" id="forge-title">Forge a name</h2>
+            <p class="section__lead">Type what you are naming and pick where it sits in the build. Parts answer to an acronym, weapons to a name, each stamped in one manufacturer's grammar. The same words give the same plate every time.</p>
+          </div>
+
+          <div class="forge-bar">
+            <label class="field field--seed">
+              <span class="field__label">What are you naming?</span>
+              <input class="input" id="seed" type="text" maxlength="120" autocomplete="off" spellcheck="false" placeholder="release automation daemon, or an acronym like RAD">
+            </label>
+            <label class="field">
+              <span class="field__label">Slot</span>
+              <select class="select" id="slotSel"></select>
+            </label>
+            <label class="field">
+              <span class="field__label">House</span>
+              <select class="select" id="houseSel"></select>
+            </label>
+            <div class="forge-bar__roll">
+              <button type="button" class="btn btn--secondary" id="prevRoll">Back</button>
+              <button type="button" class="btn btn--primary" id="reroll">Reroll</button>
+            </div>
+          </div>
+
+          <p class="slot-hint" id="slotHint"></p>
+          <p class="sr-only" id="forgeStatus" aria-live="polite"></p>
+          <div class="shared" id="forgeShared" hidden></div>
+          <div class="plates" id="plates"></div>
+        </section>
+
+        <!-- ── Garage ────────────────────────────────────────── -->
+        <section id="view-garage" class="section" aria-labelledby="garage-title" hidden>
+          <div class="section__titles">
+            <h2 class="section__title" id="garage-title">Garage</h2>
+            <p class="section__lead">Name a whole system as one build. The frame is the project, inner parts are the platform under it, and the four weapons are the tools it carries. Lock what you like and reroll the rest.</p>
+          </div>
+
+          <div class="build-head">
+            <label class="field field--seed">
+              <span class="field__label">System name</span>
+              <input class="input" id="buildName" type="text" maxlength="80" autocomplete="off" spellcheck="false" placeholder="billing platform">
+            </label>
+            <div class="build-id" id="buildCallsign"></div>
+            <div class="build-actions">
+              <button type="button" class="btn btn--ghost btn--sm" id="saveBuild">Save to hangar</button>
+              <button type="button" class="btn btn--ghost btn--sm" id="newBuild">New build</button>
+              <details class="dropdown" id="exportMenu">
+                <summary class="btn btn--primary btn--sm">Export</summary>
+                <div class="dropdown__panel" role="group" aria-label="Export this build">
+                  <button type="button" data-export="md-copy">Copy Markdown</button>
+                  <button type="button" data-export="text-copy">Copy as text</button>
+                  <button type="button" data-export="link-copy">Copy share link</button>
+                  <button type="button" data-export="md-file">Download .md</button>
+                  <button type="button" data-export="json-file">Download .json</button>
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <div class="garage-bar">
+            <div class="segmented" role="group" aria-label="Frame naming">
+              <button type="button" data-frame="matched" aria-pressed="true">Matched frame</button>
+              <button type="button" data-frame="mixed" aria-pressed="false">Mixed parts</button>
+            </div>
+            <label class="field field--inline" id="frameHouseField">
+              <span class="field__label">Frame house</span>
+              <select class="select select--sm" id="frameHouse"></select>
+            </label>
+            <button type="button" class="btn btn--secondary btn--sm" id="rerollFrame">Reroll frame</button>
+            <button type="button" class="btn btn--secondary btn--sm" id="rerollAll">Reroll unlocked</button>
+          </div>
+
+          <div class="assembly" id="assembly"></div>
+
+          <details class="preview">
+            <summary>Preview the Markdown export</summary>
+            <pre class="preview__body" id="exportPreview"></pre>
+          </details>
+
+          <section class="hangar" aria-labelledby="hangar-title">
+            <h3 class="hangar__title" id="hangar-title">Hangar <span id="hangarCount"></span></h3>
+            <p class="section__lead">Saved builds stay in this browser, newest first. Starting a new build saves the current one here.</p>
+            <ul class="hangar__list" id="hangarList"></ul>
+          </section>
+        </section>
+
+        <!-- ── Houses ────────────────────────────────────────── -->
+        <section id="view-houses" class="section" aria-labelledby="houses-title" hidden>
+          <div class="section__titles">
+            <h2 class="section__title" id="houses-title">Houses</h2>
+            <p class="section__lead">Every manufacturer on Rubicon stamps its parts its own way. Each card shows the grammar, where its words come from, a few in-game names for reference, and what it rolls for <span id="housesSeed"></span>.</p>
+          </div>
+          <div class="house-groups" id="houseGrid"></div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <footer class="neo-footer" data-footer-mode="app">
+    Unofficial fan tool. Every name is generated in your browser and stays there.
+    <template data-neo-disclaimer data-label="About the names" data-title="About Callsign">
+      <p>Callsign is an unofficial fan project. It is not affiliated with, endorsed by, or connected to FromSoftware or Bandai Namco Entertainment. ARMORED CORE is a trademark of its owners.</p>
+      <p>Each house borrows an in-game manufacturer's naming grammar: the shape of its codes and the kind of word they end in. The themes are patterns read off the part names, not anything the developers have stated. The words Callsign draws from are its own picks from public sources, such as entomologists' surnames, poets of the Basho school, German bird names, Chinese star names and Spanish vocabulary.</p>
+      <p>In-game part names appear on the Houses page as reference examples only. The generator does not draw from them, and a roll that lands exactly on a real part's designation is rolled again.</p>
+      <p>Names come from what you type, worked out entirely in this browser. Builds you save live in this browser's local storage and nowhere else.</p>
+    </template>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
