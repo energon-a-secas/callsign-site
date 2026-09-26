@@ -12,6 +12,7 @@ import { forgeLink, clip, SEED_MAX, ROLL_MAX } from './links.js';
 import { toMarkdown, toJson, toChat, badgeMarkdown, buildBadges, chatLine, wikiLine } from './export.js';
 import { ICONS } from './templates.js';
 import { $, showToast, copyText, download, slugify, debounce } from './utils.js';
+import { bindLexicon } from './events-lexicon.js';
 
 const persist = debounce(() => save(state), 300);
 const isFrame = (id) => slotDef(id).group === 'frame';
@@ -337,4 +338,5 @@ export function bindEvents() {
   bindPage();
   bindForge();
   bindGarage();
+  bindLexicon({ setView, persist });
 }

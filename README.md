@@ -42,7 +42,9 @@ house keeps its own grammar, and the same words always give the same name.
 ## Features
 
 - **Forge** -- type what you are naming, pick a slot and a house, and get plates with a designation, a 3-letter acronym and 4-letter variants
-- **Fifteen houses** -- each in-game manufacturer's naming grammar, from Furlong's `BML-G1/P20MLT-04` codes and IBIS-style `IB-C03H: HAL 826` plates to entomologists' surnames, haiku poets and German birds
+- **Fifteen game houses** -- each in-game manufacturer's naming grammar, from Furlong's `BML-G1/P20MLT-04` codes and IBIS-style `IB-C03H: HAL 826` plates to entomologists' surnames, haiku poets and German birds
+- **Seven Callsign originals** -- houses of Callsign's own in the same style, not in the game, whose words are real but little-known science that reads like science fiction: `JV-R69/H SINOPE` (Jupiter's outer moons), `UMK-331H WRINKLON` (exotic particles), `L3-LR013 FISSION SAIL` (megastructures and drives), `Uto-366H UNTRIOCTIUM` (placeholder element names), `PE-12SN ARISTOLOCHIA` (strange flora), `SV-2500H STYGIOMEDUSA` (deep sea and extremophiles), `PT-LZ159 NASCENT STATE` (retired constellations and spent science)
+- **Lexicon** -- every word family the houses draw from, filtered by subject (animals, plants, space, physics...) or language (German, Spanish, Latin, Japanese...), with the sources behind every original family's list and a lookup that says which house and family any word or designation comes from
 - **Acronyms from your words** -- "release automation daemon" gives RAD; type RAD on its own and the houses that carry letters stamp it into their codes
 - **Garage** -- name a whole system as one build: the frame for the project, inner parts for the platform, four weapons for its tools
 - **Matched frames** -- head, core, arms and legs share one line name, the way a game frame does (except Melinite, which names each part on its own), or switch to mixed parts
@@ -84,13 +86,16 @@ not affiliated with FromSoftware or Bandai Namco Entertainment.
 1.05 to 1.07, the Wikidot AC6 wiki's part descriptions, the part data in
 [matteosal/ac6-advanced-garage](https://github.com/matteosal/ac6-advanced-garage),
 and Wikipedia's lists of entomologists and of the Purple Forbidden and Supreme
-Palace enclosures.
+Palace enclosures. The seven original houses cite their own on the Lexicon page: Wikipedia's
+lists of moons, particles, megastructures, carnivorous plants and former
+constellations, IUPAC's rules for naming new elements, the World Register of
+Marine Species and The Parasitic Plant Connection, among others.
 
 ---
 
 ## Use it outside the page
 
-- **Links** -- `?s=<words>&h=<house>&p=<slot>&r=<roll>&g=1#forge` opens one plate as the first on the page, and `?b=<build>&g=1#garage` opens a whole build. The ids, the limits and the payload format are in [llms.txt](llms.txt).
+- **Links** -- `?s=<words>&h=<house>&p=<slot>&r=<roll>&g=1#forge` opens one plate as the first on the page, `?b=<build>&g=1#garage` opens a whole build, and `?fam=<family>&g=1#lexicon` opens one word family. The ids, the limits and the payload format are in [llms.txt](llms.txt).
 - **README badges** -- GitHub renders no iframe and no script, so the embed is an image: a [shields.io](https://shields.io) static badge that links back to the plate. shields.io draws it from the name in its address, and GitHub fetches it through its image proxy, so a pasted badge sends that name to both.
 - **What leaves the browser** -- names are worked out on the page and nothing is sent while you use it. What you share carries what it names: a link holds your words or the whole build in its address, so opening it sends them to GitHub Pages, which hosts the site, and a chat app that unfurls it fetches the same address.
 - **Command line** -- same engine, same names, no network (Node 22 LTS or later; 20.18 and older cannot load the engine from a plain clone):
@@ -99,15 +104,17 @@ Palace enclosures.
   node tools/callsign.mjs forge "billing dashboard" --slot head --count 3 --json
   node tools/callsign.mjs identity "billing platform"
   node tools/callsign.mjs houses
+  node tools/callsign.mjs lookup "PE-12SN ARISTOLOCHIA"
+  node tools/callsign.mjs families
   make name SEED="release automation daemon" HOUSE=ibis SLOT=booster
   ```
 
-  Exit 2 means an unknown house, slot or option; nothing is guessed. A description is cut to the 120 characters a link carries, so the plate printed is the plate its link opens.
+  Exit 2 means an unknown house, slot or option; nothing is guessed. A description is cut to the 120 characters a link carries, so the plate printed is the plate its link opens. `forge --count` with no house samples from every house, so the same command can list different houses once new ones are added; each house's own plates never change. Pin `--house` for a stable pick.
 - **Claude Code** -- the `callsign` skill in [neorgon-forge](https://github.com/LucianoAdonis/neorgon-forge) finds a checkout of this repo, runs the command line and hands back three candidates with their links.
 
 ### Grammar versions
 
-`GRAMMAR` in `js/forge.js` is stamped into every plate, export and link (`g=1`); a link with no `g` predates the numbering and counts as grammar 0. `tests/golden.test.mjs` hashes every house and slot over inputs that walk each acronym path, plus the word pools, canon hashes and reading banks themselves, and fails when an edit would rename a plate under the same number. Adding one word to a word pool renames about half of that house's plates, so a pool edit is a version bump: raise `GRAMMAR`, run `make golden`, and links made under the old number open with a notice instead of silently different names.
+`GRAMMAR` in `js/forge.js` is stamped into every plate, export and link (`g=1`); a link with no `g` predates the numbering and counts as grammar 0. `tests/golden.test.mjs` keeps one digest per house (every slot over inputs that walk each acronym path) and one per word pool, plus the canon hashes and reading banks, and fails when an edit would rename a plate under the same number. A new house or pool is an addition: `make golden` records it without a bump, which is how the seven originals joined grammar 1. Adding one word to a word pool renames about half of that house's plates, so a pool edit is a version bump: raise `GRAMMAR`, run `make golden`, and links made under the old number open with a notice instead of silently different names.
 
 ---
 
@@ -128,15 +135,18 @@ make test     # engine, links and CLI checks, then the golden plates
 
 ```
 callsign-site/
-├── index.html            # App shell: Forge, Garage and Houses views
+├── index.html            # App shell: Forge, Garage, Houses and Lexicon views
 ├── css/
 │   └── style.css         # Site styles; tokens come from the CDN base.css
 ├── js/
 │   ├── app.js            # Entry point
 │   ├── state.js          # Session, hangar, share-link codec
 │   ├── forge.js          # seed + house + slot + roll -> plate; garage rows
-│   ├── houses.js         # One grammar per manufacturer
+│   ├── houses.js         # One grammar per manufacturer, and what each draws
+│   ├── houses-callsign.js # The seven Callsign originals
 │   ├── lexicon.js        # Original word pools per house theme
+│   ├── families.js       # Word families: subjects, languages, sources
+│   ├── lookup.js         # Which house and family a word or designation is from
 │   ├── canon.js          # Hashes of real part designations, to reroll collisions
 │   ├── slots.js          # Parts and weapon classes, and what each names
 │   ├── acronym.js        # 3 and 4 letter picks from your words or the name
@@ -146,7 +156,7 @@ callsign-site/
 │   ├── export.js         # Markdown, JSON, text, README badges, chat and wiki lines
 │   ├── templates.js      # Shared HTML fragments
 │   ├── render*.js        # One module per view
-│   ├── events.js         # User interactions
+│   ├── events.js         # User interactions (events-lexicon.js for the Lexicon)
 │   └── utils.js          # Copy, download, toast
 ├── tools/callsign.mjs    # Command line over the same engine; also imported by the skill
 ├── tests/                # engine.test.mjs, golden.test.mjs + golden.json

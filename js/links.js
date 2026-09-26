@@ -62,6 +62,31 @@ export function forgeLink({ seed = '', house = 'all', slot = 'core', roll = 0 },
   return u.toString();
 }
 
+/** The keys a Lexicon link carries. None collides with a forge or garage key. */
+export const LEXICON_KEYS = ['fam', 'sub', 'lang', 'find'];
+
+/**
+ * The Lexicon view: one family (fam), or the families a subject and a
+ * language filter leave (sub, lang), and optionally a lookup (find). Only
+ * what differs from the defaults is written, and at least one key always is.
+ */
+export function lexiconLink({ family = '', subject = 'all', lang = 'all', find = '' } = {}, { base = SITE, via = '' } = {}) {
+  const u = new URL(base);
+  if (via) u.searchParams.set('via', via);
+  if (family) u.searchParams.set('fam', family);
+  else {
+    if (subject && subject !== 'all') u.searchParams.set('sub', subject);
+    if (lang && lang !== 'all') u.searchParams.set('lang', lang);
+  }
+  if (find) u.searchParams.set('find', clip(find));
+  // An unfiltered view still writes one key, so the link resets whatever the
+  // person opening it had saved instead of showing their own filters.
+  if (!LEXICON_KEYS.some((k) => u.searchParams.has(k))) u.searchParams.set('sub', 'all');
+  u.searchParams.set('g', String(GRAMMAR));
+  u.hash = 'lexicon';
+  return u.toString();
+}
+
 /** A whole build, or null when it would be too long for any browser to open. */
 export function garageLink(garage, { base = SITE, via = '' } = {}) {
   const u = new URL(base);

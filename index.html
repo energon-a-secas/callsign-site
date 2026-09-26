@@ -109,6 +109,7 @@
         <button type="button" class="rail-btn" data-view="forge"><span class="rail-btn__no" aria-hidden="true">01</span>Forge</button>
         <button type="button" class="rail-btn" data-view="garage"><span class="rail-btn__no" aria-hidden="true">02</span>Garage</button>
         <button type="button" class="rail-btn" data-view="houses"><span class="rail-btn__no" aria-hidden="true">03</span>Houses</button>
+        <button type="button" class="rail-btn" data-view="lexicon"><span class="rail-btn__no" aria-hidden="true">04</span>Lexicon</button>
       </nav>
 
       <div class="shell__main">
@@ -211,9 +212,39 @@
         <section id="view-houses" class="section" aria-labelledby="houses-title" hidden>
           <div class="section__titles">
             <h2 class="section__title" id="houses-title">Houses</h2>
-            <p class="section__lead">Every manufacturer on Rubicon stamps its parts its own way. Each card shows the grammar, where its words come from, a few in-game names for reference, and what it rolls for <span id="housesSeed"></span>.</p>
+            <p class="section__lead">Every manufacturer on Rubicon stamps its parts its own way, and Callsign adds seven houses of its own in the same style. Each card shows the grammar, the word family it draws from, a few in-game names for reference, and what it rolls for <span id="housesSeed"></span>.</p>
           </div>
           <div class="house-groups" id="houseGrid"></div>
+        </section>
+
+        <!-- ── Lexicon ───────────────────────────────────────── -->
+        <section id="view-lexicon" class="section" aria-labelledby="lexicon-title" hidden>
+          <div class="section__titles">
+            <h2 class="section__title" id="lexicon-title" tabindex="-1">Lexicon</h2>
+            <p class="section__lead">Every word a house stamps comes from one family, such as German birds, Basho school poets or placeholder elements, and Callsign picked every one from public sources. Filter the families by subject or language, or paste a name to see where each of its words comes from.</p>
+          </div>
+
+          <form class="lookup" id="lookupForm" role="search" aria-label="Look up a word or a designation">
+            <label class="field field--seed">
+              <span class="field__label">Where is a name from?</span>
+              <input class="input" id="lookupInput" type="search" maxlength="120" autocomplete="off" spellcheck="false" placeholder="A word like KIEL, or a whole designation">
+            </label>
+          </form>
+          <div id="lookupResult"></div>
+
+          <div class="facets">
+            <fieldset class="facet">
+              <legend class="facet__legend">Subject</legend>
+              <div class="facet__chips" id="lexSubjects"></div>
+            </fieldset>
+            <fieldset class="facet">
+              <legend class="facet__legend">Language</legend>
+              <div class="facet__chips" id="lexLangs"></div>
+            </fieldset>
+          </div>
+          <p class="lexicon__count" id="lexCount"></p>
+          <p class="sr-only" id="lexStatus" aria-live="polite"></p>
+          <div class="house-groups" id="familyGrid"></div>
         </section>
 
       </div>
@@ -226,6 +257,7 @@
       <p>Callsign is an unofficial fan project. It is not affiliated with, endorsed by, or connected to FromSoftware or Bandai Namco Entertainment. ARMORED CORE is a trademark of its owners.</p>
       <p>Each house borrows an in-game manufacturer's naming grammar: the shape of its codes and the kind of word they end in. The themes are patterns read off the part names, not anything the developers have stated. The words Callsign draws from are its own picks from public sources, such as entomologists' surnames, poets of the Basho school, German bird names, Chinese star names and Spanish vocabulary.</p>
       <p>In-game part names appear on the Houses page as reference examples only. The generator does not draw from them, and a roll that lands exactly on a real part's designation is rolled again.</p>
+      <p>Seven houses are Callsign's own and not in the game. Their words are real names from public science sources: small bodies of the outer solar system, exotic and hypothetical particles, megastructure and propulsion proposals, placeholder names for undiscovered elements, strange plants, deep-sea and extremophile genera, and constellations and theories science gave up. The Lexicon page lists every family and cites its sources.</p>
       <p>Names come from what you type, worked out entirely in this browser, and builds you save live in this browser's local storage. Nothing is sent while you work. What you share carries what it names: a link holds your words, or the whole build, in its address, so opening it sends them to GitHub Pages, which hosts this site, and a chat app that unfurls it fetches the same address. A README badge is drawn by shields.io from the name in its address, and GitHub fetches it through its image proxy, so a badge you paste sends that name to both.</p>
     </template>
   </footer>

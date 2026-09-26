@@ -7,6 +7,7 @@ import { houseOptions, slotOptions } from './templates.js';
 import { renderForge } from './render-forge.js';
 import { renderGarage } from './render-garage.js';
 import { renderHouses } from './render-houses.js';
+import { mountLexicon, renderLexicon } from './render-lexicon.js';
 import { $ } from './utils.js';
 
 /** Fill the static selects once. */
@@ -14,6 +15,7 @@ export function mount(s) {
   $('slotSel').innerHTML = slotOptions(s.forge.slot);
   $('houseSel').innerHTML = houseOptions(s.forge.house, { all: true });
   $('frameHouse').innerHTML = houseOptions(s.garage.frameHouse);
+  mountLexicon();
 }
 
 /** The notice above the views, and the text to copy by hand when a copy was blocked. */
@@ -34,4 +36,5 @@ export function render(s) {
   if (s.view === 'forge') renderForge(s);
   if (s.view === 'garage') renderGarage(s, { full: true });
   if (s.view === 'houses') renderHouses(s);
+  if (s.view === 'lexicon') renderLexicon(s);
 }

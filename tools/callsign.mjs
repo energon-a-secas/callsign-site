@@ -8,7 +8,8 @@
 //   identity <name...>   [--frame-house <id>] [--roll <n>]
 //   garage <file|link>   a build saved as JSON, a Callsign link, or its ?b= payload
 //   link <words...>      [--house <id>|all] [--slot <id>] [--roll <n>]
-//   houses | slots       the ids every other command accepts
+//   lookup <text...>     which house and word family a word or designation is from
+//   houses | slots | families   the ids and word families
 //
 // Output is readable text by default; --json for scripts (forge always prints
 // an array), --md for Markdown, --badge for README badges. --via <name> tags
@@ -25,6 +26,8 @@ import { rngFrom, sample } from '../js/rng.js';
 import { sanitizeGarage, blankGarage, isBuild } from '../js/state.js';
 import { forgeLink, garageLink, decode, linkGrammar, clip, SITE, SEED_MAX, ROLL_MAX } from '../js/links.js';
 import { toMarkdown, toJson, toChat, badgeMarkdown, buildBadges, chatLine, wikiLine } from '../js/export.js';
+import { FAMILIES, usedBy, wordsOf, subjectLabel, language } from '../js/families.js';
+import { lookup } from '../js/lookup.js';
 
 // Re-exported so the skill can check it loaded a Callsign engine and say which grammar.
 export { GRAMMAR };
@@ -34,7 +37,9 @@ export const USAGE = `usage: callsign <command> [words] [options]
   identity <name...>   a build's acronym and frame line
   garage <file|link>   every slot of a saved build
   link <words...>      the share link for a plate
+  lookup <text...>     where a word or a designation comes from
   houses | slots       the ids the other commands accept
+  families             every word family the houses draw from
 options: --house <id|all>  --slot <id>  --roll <n>  --count <n>  --frame-house <id>
          --via <name>  --base <url>  --json  --md  --badge  --help
 grammar ${GRAMMAR}: the same words, house, slot and roll always give the same plate`;
@@ -48,8 +53,10 @@ const ALLOWED = {
   link: ['house', 'slot', 'roll', 'count', 'via', 'base', 'json'],
   identity: ['frame-house', 'roll', 'via', 'base', 'json'],
   garage: ['via', 'base', 'json', 'md', 'badge'],
+  lookup: ['json'],
   houses: ['json'],
   slots: ['json'],
+  families: ['json'],
 };
 
 export class UsageError extends Error {}
@@ -251,10 +258,53 @@ export async function main(argv, io = stdio) {
         if (!link) io.err('callsign: this build is too big for a link that opens; share the Markdown or JSON instead');
         return 0;
       }
+      case 'lookup': {
+        const text = args.join(' ').trim();
+        if (!text) throw new UsageError('lookup needs a word or a designation');
+        const r = lookup(clip(text, SEED_MAX));
+        if (clip(text, SEED_MAX).length < text.length) io.err(`callsign: the lookup was cut to its first ${SEED_MAX} characters, as the page cuts it`);
+        if (opts.json) {
+          io.out(JSON.stringify({
+            // A real part's designation is never echoed back, not even as the query.
+            query: r.canon ? null : r.query, grammar: GRAMMAR, realPart: r.canon, houses: r.houses.map((h) => h.id),
+            words: [
+              ...r.hits.map((x) => ({ word: x.word, family: x.family.id, pool: x.pool })),
+              ...r.stripped.map((x) => ({ word: x.token, family: x.family.id, pool: 'TERSE', from: x.words })),
+            ],
+            marks: r.marks.map((m) => ({ token: m.token, means: m.means })),
+            ownLetters: r.loose ? r.loose.tokens : [],
+            unknown: r.misses, suggestions: r.suggestions,
+          }, null, 2));
+          return 0;
+        }
+        // A real part's designation is never echoed back.
+        if (r.canon) { io.out('a real part\'s designation from the game; Callsign never rolls it'); return 0; }
+        if (r.houses.length) io.out(`fits ${r.houses.map((h) => `${h.name} (${h.grammar})`).join(' or ')}`);
+        for (const x of r.hits) io.out(`${x.word}: ${x.family.label} (${x.family.id})`);
+        for (const x of r.stripped) io.out(`${x.token}: ${x.family.label} (${x.family.id}), from ${x.words.join(' or ')} with the vowels dropped`);
+        for (const m of r.marks) io.out(`${m.token}: ${m.means}`);
+        if (r.loose) io.out(`${r.loose.tokens.length ? `${r.loose.tokens.join(', ')}: ` : ''}${r.loose.copy}`);
+        if (r.misses.length) io.out(`no family holds ${r.misses.join(', ')}`);
+        if (r.suggestions.length) io.out(`starts with ${r.query.toUpperCase()}: ${r.suggestions.join(', ')}`);
+        if (!r.houses.length && !r.hits.length && !r.stripped.length && !r.marks.length && !r.loose && !r.misses.length && !r.suggestions.length) {
+          io.out('no family word or house matches that');
+        }
+        return 0;
+      }
+      case 'families': {
+        const list = FAMILIES.map((f) => ({
+          id: f.id, label: f.label, words: wordsOf(f),
+          subjects: f.subjects.map(subjectLabel), languages: f.languages.map((id) => language(id).label),
+          houses: [...new Set(usedBy(f.id).map((u) => u.house.id))], sources: f.sources.map((x) => x.url),
+        }));
+        if (opts.json) io.out(JSON.stringify(list, null, 2));
+        else list.forEach((f) => io.out(`${f.id.padEnd(23)} ${f.label.padEnd(29)} ${String(f.words).padStart(3)} words  ${f.houses.join(', ')}`));
+        return 0;
+      }
       case 'houses': {
         const list = HOUSES.map((h) => ({ id: h.id, name: h.full || h.name, group: h.group, grammar: h.grammar }));
         if (opts.json) io.out(JSON.stringify(list, null, 2));
-        else list.forEach((h) => io.out(`${h.id.padEnd(10)} ${h.name.padEnd(24)} ${h.grammar}`));
+        else list.forEach((h) => io.out(`${h.id.padEnd(10)} ${h.name.padEnd(28)} ${h.grammar.padEnd(22)}${h.group === 'originals' ? ' Callsign original' : ''}`.trimEnd()));
         return 0;
       }
       case 'slots': {

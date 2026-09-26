@@ -2,7 +2,7 @@
 // HTML fragments more than one view prints. Every interpolated string goes
 // through escHtml, generated codes included.
 
-import { HOUSES, GROUPS } from './houses.js';
+import { HOUSES, GROUPS, houseById } from './houses.js';
 import { PARTS, WEAPONS } from './slots.js';
 import { escHtml } from './utils.js';
 
@@ -78,6 +78,7 @@ export function plateHtml(p, { compact = false } = {}) {
         </div>
       </details>
       <button type="button" class="btn btn--ghost btn--sm" data-mount>Mount in garage</button>
+      ${houseById(p.house).draws.length ? `<button type="button" class="btn btn--ghost btn--sm" data-lookup="${escHtml(p.designation)}" aria-label="Word family: look up where ${escHtml(p.designation)} gets its words">Word family</button>` : ''}
     </div>
   </article>`;
 }

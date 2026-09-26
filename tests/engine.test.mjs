@@ -12,10 +12,16 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { forge, garageRows, GRAMMAR } from '../js/forge.js';
 import { HOUSES } from '../js/houses.js';
+import { CALLSIGN_HOUSES, Z_OF } from '../js/houses-callsign.js';
 import { PARTS, WEAPONS } from '../js/slots.js';
+import * as L from '../js/lexicon.js';
+import { FAMILIES, SUBJECTS, LANGUAGES, POOL_LABELS, usedBy } from '../js/families.js';
+import { lookup } from '../js/lookup.js';
+import { familyCard } from '../js/render-lexicon.js';
+import { acronyms } from '../js/acronym.js';
 import { isCanon } from '../js/canon.js';
 import { blankGarage, sanitizeGarage, loadSaved, readUrl } from '../js/state.js';
-import { encode, decode, forgeLink, garageLink, linkGrammar, clip, SITE, MAX_LINK, SEED_MAX } from '../js/links.js';
+import { encode, decode, forgeLink, garageLink, lexiconLink, linkGrammar, clip, SITE, MAX_LINK, SEED_MAX } from '../js/links.js';
 import { badgeText, badgeMarkdown, buildBadges, chatLine, toJson } from '../js/export.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -168,6 +174,136 @@ for (const h of HOUSES) for (const seed of ['', 'KRSV']) {
 const rad = forge({ seed: 'release automation daemon', house: 'ibis', slot: 'booster' });
 ok('chat line leads with the acronym for a part', chatLine(rad, '').startsWith(`RAD (${rad.designation})`), chatLine(rad, ''));
 
+// ── Word families ────────────────────────────────────────────
+const NOT_A_FAMILY = ['ASTERISMS', 'CENTAURS', 'GREEK', 'IB_TAKEN'];
+const arrays = Object.entries(L).filter(([, v]) => Array.isArray(v)).map(([k]) => k);
+const familyPools = FAMILIES.flatMap((f) => f.pools);
+ok('every family pool is a lexicon pool', familyPools.every((p) => arrays.includes(p)), familyPools.filter((p) => !arrays.includes(p)));
+ok('every lexicon pool sits in exactly one family',
+  arrays.filter((a) => !NOT_A_FAMILY.includes(a)).every((a) => familyPools.filter((p) => p === a).length === 1),
+  arrays.filter((a) => !NOT_A_FAMILY.includes(a) && familyPools.filter((p) => p === a).length !== 1));
+const owner = new Map();
+const twice = [];
+for (const pool of familyPools) for (const w of L[pool]) { if (owner.has(w)) twice.push(`${w} in ${owner.get(w)} and ${pool}`); owner.set(w, pool); }
+ok('no word sits in two pools', twice.length === 0, twice.slice(0, 5).join(' | '));
+ok('no family word is a real part designation', familyPools.every((p) => L[p].every((w) => !isCanon(w))), familyPools.flatMap((p) => L[p].filter((w) => isCanon(w))));
+const originalPools = CALLSIGN_HOUSES.flatMap((h) => h.draws.map((d) => d.pool));
+for (const pool of originalPools) {
+  const bad = L[pool].filter((w) => !/^[A-Z0-9]+(?:[ -][A-Z0-9]+)*$/.test(w) || w.length > 14);
+  ok(`${pool}: words are plain capitals, 14 characters at most`, bad.length === 0, bad);
+  ok(`${pool}: 25 to 60 words`, L[pool].length >= 25 && L[pool].length <= 60, L[pool].length);
+}
+ok('every pool has a label', familyPools.every((p) => POOL_LABELS[p]));
+const subjectIds = SUBJECTS.map((x) => x.id);
+const langIds = LANGUAGES.map((x) => x.id);
+for (const f of FAMILIES) {
+  ok(`${f.id}: subjects and languages are known`, f.subjects.every((x) => subjectIds.includes(x)) && f.languages.every((x) => langIds.includes(x)) && f.subjects.length && f.languages.length);
+  ok(`${f.id}: label fits and copy has no long dashes`, f.label.length <= 28 && !/[–—]/.test(f.label + f.about));
+  ok(`${f.id}: sources are https`, f.sources.every((x) => /^https:\/\//.test(x.url) && x.label));
+  ok(`${f.id}: some house draws it`, usedBy(f.id).length > 0);
+}
+ok('every original family cites a source', FAMILIES.filter((f) => f.pools.some((p) => originalPools.includes(p))).every((f) => f.sources.length));
+
+// What a house says it draws is what it really draws. Forge every house and
+// slot, read each plate back through the lookup, and check both directions.
+const slotKeys = (id) => {
+  const def = [...PARTS, ...WEAPONS].find((x) => x.id === id);
+  return [id, WEAPONS.includes(def) ? 'weapons' : def.group];
+};
+const declared = (h, pool, slot) => h.draws.some((d) => d.pool === pool && d.slots.some((k) => slotKeys(slot).includes(k)));
+for (const h of HOUSES) {
+  ok(`${h.id}: has draws and a shape`, Array.isArray(h.draws) && h.shape instanceof RegExp);
+  ok(`${h.id}: draws name real pools`, h.draws.every((d) => arrays.includes(d.pool)));
+  const seen = new Set();
+  const stray = [];
+  const shapeMiss = [];
+  const otherShape = [];
+  for (const slot of SLOTS) for (const seed of ['', 'billing dashboard', 'x']) for (let roll = 0; roll < 40; roll++) {
+    const p = forge({ seed, house: h.id, slot, roll });
+    if (!h.shape.test(p.designation)) shapeMiss.push(p.designation);
+    const others = HOUSES.filter((o) => o !== h && o.id !== 'melinite' && o.shape.test(p.designation));
+    if (others.length && h.id !== 'melinite') otherShape.push(`${p.designation} fits ${others.map((o) => o.id)}`);
+    if (isCanon(p.designation)) continue;
+    const r = lookup(p.designation);
+    for (const x of r.hits) {
+      if (declared(h, x.pool, slot)) seen.add(`${x.pool}|${slotKeys(slot)[1]}|${slot}`);
+      else stray.push(`${p.designation} (${slot}) drew ${x.pool}`);
+    }
+    for (const x of r.stripped) seen.add(`TERSE|weapons|${slot}`);
+  }
+  ok(`${h.id}: its shape fits every plate it makes`, shapeMiss.length === 0, shapeMiss.slice(0, 3));
+  ok(`${h.id}: no other house's shape fits its plates`, otherShape.length === 0, otherShape.slice(0, 3));
+  ok(`${h.id}: plates draw only from declared pools`, stray.length === 0, stray.slice(0, 3));
+  const unseen = h.draws.filter((d) => ![...seen].some((k) => k.startsWith(`${d.pool}|`)));
+  ok(`${h.id}: every declared pool shows up`, unseen.length === 0, unseen.map((d) => d.pool));
+}
+for (const h of HOUSES) for (const c of h.canon) {
+  const r = lookup(c);
+  ok(`lookup never echoes the real part ${h.id}`, r.canon && !r.hits.length && !r.houses.length);
+}
+const cardText = FAMILIES.map((f) => familyCard(f, { open: true })).join('\n');
+const leaked = HOUSES.flatMap((h) => h.canon).filter((c) => cardText.includes(c));
+ok('no family card shows an in-game designation', leaked.length === 0, leaked);
+
+// House rules the codes depend on.
+ok('every Jovian moon ends in A, E or O', L.JOVIAN_MOONS.every((w) => /[AEO]$/.test(w)), L.JOVIAN_MOONS.filter((w) => !/[AEO]$/.test(w)));
+ok('the centaurs are the tail of the weapons pool', JSON.stringify(L.GIANTS_AND_CENTAURS.slice(-L.CENTAURS.length)) === JSON.stringify(L.CENTAURS));
+ok('every superheavy name is a real placeholder name', L.SUPERHEAVY.every((w) => Z_OF.has(w)), L.SUPERHEAVY.filter((w) => !Z_OF.has(w)));
+ok('placeholder names follow IUPAC', Z_OF.get('UNBINILIUM') === 120 && Z_OF.get('UNBIBIUM') === 122 && Z_OF.get('UNBIENNIUM') === 129 && Z_OF.get('UNTRINILIUM') === 130);
+
+// Letters Callsign's own words must never hand out. A test list, not BLOCKED:
+// changing BLOCKED would rename plates in shipped houses.
+const DENY = new Set(['SPIC', 'CONO', 'METH', 'CSM', 'CTM', 'PTM', 'PTO', 'NIP', 'NRA', 'ANO', 'DEI', 'LAME',
+  'DMT', 'PTA', 'LPM', 'HUEA']);
+const denied = [];
+// What the plates really hand out, which for Quadnil is the element symbol, not the word.
+for (const h of CALLSIGN_HOUSES) for (const slot of SLOTS) for (let roll = 0; roll < 200; roll++) {
+  const p = forge({ seed: '', house: h.id, slot, roll });
+  const bad = [...p.acronym.three, ...p.acronym.four].filter((c) => DENY.has(c) || DENY.has(c.slice(0, 3)));
+  if (bad.length) denied.push(`${p.designation}: ${bad}`);
+  if (!WEAPONS.some((x) => x.id === slot) && p.acronym.three[0] === 'THE') denied.push(`${p.designation} leads with THE`);
+}
+for (const h of CALLSIGN_HOUSES) for (const d of h.draws) for (const slot of SLOTS) {
+  if (!d.slots.some((k) => slotKeys(slot).includes(k))) continue;
+  const roles = [...PARTS, ...WEAPONS].find((x) => x.id === slot).roles;
+  for (const w of L[d.pool]) {
+    const a = acronyms({ seed: '', name: w, roles, rng: () => 0.5 });
+    const chips = [...a.three, ...a.four];
+    const bad = chips.filter((c) => DENY.has(c) || [...DENY].some((x) => x.length === 3 && c.startsWith(x) && c.length === 4 && DENY.has(c.slice(0, 3))));
+    if (bad.length) denied.push(`${w} (${slot}): ${bad}`);
+    if (!WEAPONS.some((x) => x.id === slot) && a.three[0] === 'THE') denied.push(`${w} (${slot}) leads with THE`);
+  }
+}
+ok('no original word hands out a denied acronym', denied.length === 0, denied.slice(0, 5).join(' | '));
+
+// Lookups a person really types or pastes.
+const look = (q) => lookup(q);
+ok('lookup: a real part inside longer text is refused', look('my frame is HD-011 MELANDER ok').canon && look('hd-011 melander').canon);
+ok('lookup: lowercase and extra spaces keep the house', look('jv-r69/h   sinope').houses[0]?.id === 'apojove' && look('ubh-316h unbihexium').houses[0]?.id === 'quadnil');
+ok('lookup: ALLMIND two-letter words are found', look('44-155 MR DELTA').stripped[0]?.words.includes('MIRROR'));
+ok('lookup: IBIS letters that spell a word stay its own letters', look('IB-C03H: RAD 826').loose?.tokens.includes('RAD') && !look('IB-C03H: RAD 826').hits.length);
+ok('lookup: Norse letters fold to the pool spelling', look('Sköll').hits[0]?.word === 'SKOLL');
+ok('lookup: German umlauts fold to the pool spelling', look('Zaunkönig').hits[0]?.word === 'ZAUNKOENIG');
+
+// ── Lexicon links ────────────────────────────────────────────
+const ll = new URL(lexiconLink({ family: 'strange-flora', find: 'kiel' }, { via: 'agent' }));
+ok('a lexicon link carries only what differs', ll.searchParams.get('fam') === 'strange-flora' && ll.searchParams.get('find') === 'kiel'
+  && !ll.searchParams.has('sub') && ll.searchParams.get('g') === String(GRAMMAR) && ll.hash === '#lexicon', ll.href);
+const bare = new URL(lexiconLink({}));
+ok('an unfiltered lexicon link still resets the view it opens', bare.searchParams.get('sub') === 'all' && bare.searchParams.has('g'), bare.href);
+v = visit(lexiconLink({}), { ...session(GRAMMAR), lexicon: { family: '', subject: 'plants', lang: 'la', find: 'kiel' } });
+ok('an unfiltered lexicon link clears the viewer\'s saved filters', v.lexicon.subject === 'all' && v.lexicon.lang === 'all' && v.lexicon.find === '', JSON.stringify(v.lexicon));
+v = visit(lexiconLink({ family: 'german-birds' }), session(0));
+ok('a lexicon link keeps the note about an older saved session', /last session/.test(v.notice), v.notice);
+v = visit(lexiconLink({ subject: 'plants', lang: 'la' }));
+ok('a lexicon link reopens its filters', v.view === 'lexicon' && v.lexicon.subject === 'plants' && v.lexicon.lang === 'la' && v.notice === '', JSON.stringify(v.lexicon));
+v = visit('?fam=nope&sub=plants&g=1#lexicon');
+ok('an unknown family shows every family, as its notice says', v.lexicon.family === '' && v.lexicon.subject === 'all' && /word family Callsign does not have/.test(v.notice), v.notice);
+v = visit('?fam=german-birds&sub=plants&g=1#lexicon');
+ok('a picked family clears the filters', v.lexicon.family === 'german-birds' && v.lexicon.subject === 'all');
+v = visit('?sub=nope&g=1#lexicon');
+ok('an unknown subject falls back and says so', v.lexicon.subject === 'all' && /subject Callsign does not have/.test(v.notice), v.notice);
+
 // ── CLI ──────────────────────────────────────────────────────
 const cli = (...args) => spawnSync(process.execPath,
   ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', join(ROOT, 'tools', 'callsign.mjs'), ...args], { encoding: 'utf8' });
@@ -228,6 +364,18 @@ ok('cli: importing it runs nothing and exports the grammar', r.status === 0 && r
 r = cli('houses', '--json');
 const houses = json(r) || [];
 ok('cli: houses lists every id and no in-game names', houses.length === HOUSES.length && !JSON.stringify(houses).includes('canon'), r.stdout.slice(0, 200));
+r = cli('families', '--json');
+const fams = json(r) || [];
+ok('cli: families lists every family with its houses', fams.length === FAMILIES.length && fams.every((f) => f.houses.length && f.words > 0), r.stdout.slice(0, 200));
+r = cli('lookup', 'PE-12SN', 'ARISTOLOCHIA', '--json');
+const found = json(r) || {};
+ok('cli: lookup names the house and the family', found.houses?.[0] === 'peristome' && found.words?.[0]?.family === 'strange-flora', r.stdout.slice(0, 300));
+r = cli('lookup', 'HD-011', 'MELANDER');
+ok('cli: lookup never echoes a real part', r.status === 0 && !r.stdout.includes('MELANDER') && /real part/.test(r.stdout), r.stdout);
+r = cli('lookup', 'HD-011', 'MELANDER', '--json');
+ok('cli: lookup --json never echoes a real part', r.status === 0 && !r.stdout.includes('MELANDER') && json(r)?.realPart === true, r.stdout);
+r = cli('lookup');
+ok('cli: lookup with nothing exits 2', r.status === 2);
 
 console.log(`engine: ${pass} checks passed over ${plates} plates`);
 if (failures.length) {

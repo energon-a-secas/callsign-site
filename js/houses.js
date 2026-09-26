@@ -17,10 +17,21 @@
 // Where a code segment has no known meaning (BAWS J/T/E, Schneider E/F/Z/D),
 // the letters are sampled from the ones the game uses and nothing more is
 // claimed about them.
+//
+// Two more fields serve the Lexicon view and its lookup, and forge() reads
+// neither, so editing them never renames a plate:
+//   draws   [{ pool, slots, note?, stripped? }]: which lexicon.js pools the
+//           house stamps, for 'frame', 'inner', 'weapons' or single slot ids.
+//           It must match what make() really picks; tests/engine.test.mjs
+//           forges every house to check.
+//   shape   a regex for a whole designation from this house, and no other.
+//
+// Callsign's own houses live in houses-callsign.js and are appended below.
 
 import { pick, int, pad } from './rng.js';
 import { disemvowel } from './acronym.js';
 import * as L from './lexicon.js';
+import { CALLSIGN_HOUSES } from './houses-callsign.js';
 
 export const GROUPS = [
   { id: 'balam', label: 'Balam Group', note: 'The heavy-industry conglomerate behind the Redguns, and its subsidiary.' },
@@ -28,6 +39,7 @@ export const GROUPS = [
   { id: 'specialists', label: 'Specialists', note: 'Makers of one kind of weapon. Furlong, VCPL and Takigawa come from off-world; nobody has pinned down where Melinite belongs.' },
   { id: 'rubicon', label: 'Rubicon', note: 'Local makers: a workshop that sells to everyone, a steel foundry, and a scavenger crew.' },
   { id: 'coral', label: 'Coral', note: 'A mercenary support system, and the research institute the Fires of Ibis wiped out.' },
+  { id: 'originals', label: 'Callsign originals', original: true, note: 'Houses Callsign made up in the style of the game\'s makers. None of them is in Armored Core VI, and their words come from public science sources.' },
 ];
 
 const isFrame = (s) => s.group === 'frame';
@@ -64,12 +76,14 @@ const TRIANGULAR = ['003', '010', '015', '021', '036', '045', '055', '066', '078
 /** Where a weapon mounts, in VCPL's middle digit: 0 back, 6 arm, 7 melee. */
 const vcplMount = (s) => (isMelee(s) ? 7 : s.mount === 'back' ? 0 : 6);
 
-export const HOUSES = [
+const GAME_HOUSES = [
   // ── Balam Group ────────────────────────────────────────────
   {
     id: 'balam', name: 'Balam', full: 'Balam Industries', group: 'balam', tagline: 'Group parent',
     theme: 'Mass-production parts under a type code and a surname. Nearly every surname matches a noted entomologist, and C3 marks a custom line.',
     grammar: 'TT-NNN SURNAME', canon: ['HD-011 MELANDER', 'RF-024 TURNER', 'LG-022T BORNEMISSZA'], signature: 'rifle',
+    draws: [{ pool: 'ENTOMOLOGISTS', slots: ['frame', 'inner', 'weapons'], note: 'C3 marks a custom frame line' }],
+    shape: /^[A-Z]{2}-\d{3}[TM]? [A-Z]+( C3)?$/,
     make({ rng, line, slot, attempt }) {
       const name = pick(line, L.ENTOMOLOGISTS);
       const series = int(line, 1, 49) + attempt * 100;
@@ -87,6 +101,8 @@ export const HOUSES = [
     id: 'dafeng', name: 'Dafeng', full: 'Dafeng Core Industries', group: 'balam', tagline: 'Balam subsidiary',
     theme: 'Heavyweight parts named with Chinese star groups from two of the three celestial enclosures, in hyphenated pinyin.',
     grammar: 'DF-TT-NN STAR-GROUP', canon: ['DF-HD-08 TIAN-QIANG', 'DF-GA-08 HU-BEN', 'DF-GN-06 MING-TANG'], signature: 'gatling',
+    draws: [{ pool: 'ASTERISMS_GUARD', slots: ['frame', 'weapons'] }, { pool: 'ASTERISMS_OFFICE', slots: ['frame', 'inner'] }],
+    shape: /^DF-[A-Z]{2}-\d{2} [A-Z]+(-[A-Z]+)+$/,
     make({ rng, line, slot, attempt }) {
       const pool = isFrame(slot) ? L.ASTERISMS : isInner(slot) ? L.ASTERISMS_OFFICE : L.ASTERISMS_GUARD;
       const name = pick(line, pool);
@@ -100,6 +116,8 @@ export const HOUSES = [
     id: 'arquebus', name: 'Arquebus', full: 'Arquebus Corporation', group: 'arquebus', tagline: 'Group parent',
     theme: 'No names at all: a slot class and a letter code. 44 is a head, 66 an arm gun, 61 a shield; LR is a laser rifle.',
     grammar: 'VP-CC[FORM]X', canon: ['VP-44S', 'VP-424', 'VP-66LR'], signature: 'laser',
+    draws: [],
+    shape: /^VP-\d{2,3}[A-Z0-9]*$/,
     make({ rng, line, slot, attempt }) {
       const letter = pick(line, ['S', 'D', 'C']);
       if (!slot.code) {
@@ -116,6 +134,8 @@ export const HOUSES = [
     id: 'add', name: 'Arquebus ADD', full: 'Arquebus ADD', group: 'arquebus', tagline: 'Development division',
     theme: 'Prototypes and concept models: the corporate code with a VE prefix and a revision letter on the end.',
     grammar: 'VE-CC[FORM]A', canon: ['VE-44B', 'VE-66LRB', 'VE-60SNA'], signature: 'stun',
+    draws: [],
+    shape: /^VE-\d{2,3}[A-Z0-9]*$/,
     make({ rng, line, slot, attempt }) {
       if (!slot.code) {
         const rev = pick(line, ['A', 'B', 'C']);
@@ -132,6 +152,8 @@ export const HOUSES = [
     id: 'schneider', name: 'Schneider', full: 'Schneider', group: 'arquebus', tagline: 'Aerodynamics',
     theme: 'Light parts named after birds in German, a frame line sharing one letter. Boosters take a part of the bird instead.',
     grammar: 'BIRD/CCX', canon: ['NACHTREIHER/40E', 'ALULA/21E', 'WUERGER/66E'], signature: 'shotgun',
+    draws: [{ pool: 'BIRDS', slots: ['frame', 'weapons'] }, { pool: 'PLUMAGE', slots: ['inner'] }],
+    shape: /^[A-Z]+\/\d{2}[EFZD]$/,
     make({ rng, line, slot, attempt }) {
       const bird = pick(line, L.BIRDS);
       const letter = pick(line, ['E', 'F', 'Z', 'D']);
@@ -147,6 +169,8 @@ export const HOUSES = [
     id: 'furlong', name: 'Furlong', full: 'Furlong Dynamics', group: 'specialists', tagline: 'Missiles',
     theme: 'No names. The code carries the family, the generation, a product number, the launch type and the cell count.',
     grammar: 'FAM-G#/PNN[TYPE]-NN', canon: ['BML-G1/P20MLT-04', 'BST-G2/P06SPD', 'FCS-G2/P12SML'], signature: 'missile',
+    draws: [],
+    shape: /^[A-Z]{3}-G\d\/P\d{2}[A-Z]*(-\d{2})?$/,
     make({ rng, line, slot, weapon }) {
       const gen = int(line, 1, 3);
       const product = pad(int(rng, 1, 32), 2);
@@ -166,6 +190,8 @@ export const HOUSES = [
     id: 'vcpl', name: 'VCPL', full: 'VCPL', group: 'specialists', tagline: 'Plasma',
     theme: 'Plasma and laser weapons only: a 7-series number whose middle digit says where it mounts (0 back, 6 arm, 7 melee), then a type code.',
     grammar: 'Vvc-7MN[TT]', canon: ['Vvc-760PR', 'Vvc-770LB', 'Vvc-706PM'], signature: 'plasma',
+    draws: [],
+    shape: /^Vvc-7[067][0-9V][A-Z]{2}$/,
     make({ rng, line, slot, partIndex, attempt }) {
       if (!slot.code) {
         // VCPL makes no frames. A frame's parts share mount and type and count up
@@ -190,6 +216,8 @@ export const HOUSES = [
     id: 'melinite', name: 'Melinite', full: 'Melinite', group: 'specialists', tagline: 'Explosives',
     theme: 'Grenades and bazookas with no code at all, only a word. The words lean toward precious things and loud sounds.',
     grammar: 'WORD', canon: ['EARSHOT', 'LITTLE GEM', 'IRIDIUM'], signature: 'grenade',
+    draws: [{ pool: 'MELINITE', slots: ['frame', 'inner', 'weapons'] }],
+    shape: /^[A-Z]+( [A-Z]+)*$/,
     make({ rng }) {
       // A bare word cannot tell a head from a core, so every part rolls its own.
       return { code: '', name: pick(rng, L.MELINITE) };
@@ -199,6 +227,8 @@ export const HOUSES = [
     id: 'takigawa', name: 'Takigawa', full: 'Takigawa Harmonics', group: 'specialists', tagline: 'Pulse',
     theme: 'Pulse equipment in terse codes: HI for a hand unit, SI for a shield, a number, then GU, BU or SU and a model code.',
     grammar: 'HI-NN: GU-XX', canon: ['HI-32: BU-TT/A', 'HI-16: GU-Q1', 'SI-24: SU-Q5'], signature: 'shield',
+    draws: [],
+    shape: /^[A-Z]I-\d{2}: [GBS]U-([QAR]\d|TT\/[ABC])$/,
     make({ rng, line, slot, attempt }) {
       const number = pad(int(line, 10, 39) + attempt * 10, 2);
       const r = slot.code ? rng : line;
@@ -218,6 +248,8 @@ export const HOUSES = [
     id: 'baws', name: 'BAWS', full: 'BAWS', group: 'rubicon', tagline: 'Sells to both sides',
     theme: 'Workhorse parts named with the pen names of Basho and his disciples. Variants of one weapon add -RF or -AR.',
     grammar: 'AS-J-NNN PENNAME', canon: ['AH-J-124 BASHO', 'AG-J-098 JOSO', 'MA-J-201 RANSETSU-AR'], signature: 'rifle',
+    draws: [{ pool: 'POETS', slots: ['frame', 'inner', 'weapons'] }],
+    shape: /^(A[A-Z]|MA)-[JTE]-\d{3} [A-Z]+(-(RF|AR))?$/,
     make({ rng, line, slot, partIndex, attempt }) {
       const poet = pick(line, L.POETS);
       const series = pick(line, ['J', 'T', 'E']);
@@ -235,6 +267,8 @@ export const HOUSES = [
     id: 'elcano', name: 'Elcano', full: 'Elcano', group: 'rubicon', tagline: 'Steel foundry',
     theme: 'A Rubiconian steelmaker naming parts in Spanish: steadfast and early-light words for the body, weather for the weapons.',
     grammar: 'EL-PS-NN PALABRA', canon: ['EL-PH-00 ALBA', 'EL-TL-11 FORTALEZA', 'EL-PW-01 TRUENO'], signature: 'shotgun',
+    draws: [{ pool: 'SPANISH_STEADY', slots: ['frame', 'inner'] }, { pool: 'SPANISH_WEATHER', slots: ['weapons'] }],
+    shape: /^EL-[PT][A-Z]-\d{2} [A-Z]+$/,
     make({ rng, line, slot, attempt }) {
       const lineLetter = pick(line, ['P', 'T']);
       const word = pick(slot.code ? rng : line, slot.code ? L.SPANISH_WEATHER : L.SPANISH_STEADY);
@@ -246,6 +280,14 @@ export const HOUSES = [
     id: 'rad', name: 'RaD', full: 'RaD', group: 'rubicon', tagline: 'Scavengers',
     theme: 'Salvaged parts by series: 2000 scouts named for the job, 3000 construction rigs, 5000 combat frames named for courses of a meal. Weapons get idioms.',
     grammar: 'SC-5000 NAME', canon: ['HC-2000 FINDER EYE', 'CS-5000 MAIN DISH', 'WB-0000 BAD COOK'], signature: 'flamer',
+    draws: [
+      { pool: 'RAD_SCOUT', slots: ['frame', 'fcs', 'generator', 'expansion'], note: '2000 series' },
+      { pool: 'RAD_WORKS', slots: ['frame', 'fcs', 'generator', 'expansion'], note: '3000 series' },
+      { pool: 'RAD_COURSES', slots: ['frame', 'fcs', 'generator', 'expansion'], note: '5000 series' },
+      { pool: 'RAD_BOOSTERS', slots: ['booster'] },
+      { pool: 'RAD_IDIOMS', slots: ['weapons'] },
+    ],
+    shape: /^[A-Z0-9]{2}-\d{4} [A-Z0-9]+( [A-Z]+)*$/,
     make({ rng, line, slot, attempt }) {
       const series = pick(line, [2000, 3000, 5000]);
       const legs = pick(line, ['2', 'R']);
@@ -268,6 +310,8 @@ export const HOUSES = [
     id: 'allmind', name: 'ALLMIND', full: 'ALLMIND', group: 'coral', tagline: 'Mercenary support system',
     theme: 'Two-block part numbers. Frames are a word for the mind plus a Greek letter; weapons are words with the vowels dropped. Stamps your own word into weapons.',
     grammar: 'CC-NNN WRD', canon: ['20-081 MIND ALPHA', '44-141 JVLN ALPHA', '44-143 HMMR'], signature: 'missile',
+    draws: [{ pool: 'MINDWORDS', slots: ['frame', 'inner'] }, { pool: 'TERSE', slots: ['weapons'], stripped: 4, note: 'only when your own words give no word of three letters or more' }],
+    shape: /^\d{2}-\d{3} [A-Z]{2,}( (ALPHA|BETA|GAMMA|DELTA))?$/,
     make({ rng, line, slot, words }) {
       const mind = pick(line, L.MINDWORDS);
       const greek = pick(line, L.GREEK);
@@ -286,6 +330,8 @@ export const HOUSES = [
     id: 'ibis', name: 'IBIS', full: 'Institute IB parts', group: 'coral', tagline: 'Ibis series',
     theme: 'Coral parts from the Ibis series: three letters and three digits, shared across a unit. No source explains the letters. Stamps your acronym.',
     grammar: 'IB-C03S: AAA NNN', canon: ['IB-C03H: HAL 826', 'IB-C03W1: WLT 011', 'IB-C03G: NGI 000'], signature: 'plasma',
+    draws: [],
+    shape: /^IB-C03[A-Z]\d?: [A-Z]{3} \d{3}$/,
     make({ rng, line, slot, letters }) {
       let stock = line() < 0.7
         ? pick(line, CONSONANTS) + pick(line, VOWELS) + pick(line, CONSONANTS)
@@ -301,12 +347,16 @@ export const HOUSES = [
     id: 'ia', name: 'Institute IA', full: 'Institute IA parts', group: 'coral', tagline: 'Unpiloted Coral-era parts',
     theme: 'Parts built for unpiloted ACs long ago: biology words for the body, sky and light words for the weapons.',
     grammar: 'IA-C01S: WORD', canon: ['IA-C01H: EPHEMERA', 'IA-C01G: AORTA', 'IA-C01W1: NEBULA'], signature: 'laser',
+    draws: [{ pool: 'IA_BODY', slots: ['frame', 'inner'] }, { pool: 'IA_SKY', slots: ['weapons'] }],
+    shape: /^IA-C01[A-Z]\d?: [A-Z]+$/,
     make({ rng, line, slot }) {
       if (slot.code) return { code: `IA-C01W${int(rng, 1, 9)}:`, name: pick(rng, L.IA_SKY) };
       return { code: `IA-C01${slot.letter}:`, name: pick(line, L.IA_BODY) };
     },
   },
 ];
+
+export const HOUSES = [...GAME_HOUSES, ...CALLSIGN_HOUSES];
 
 const BY_ID = new Map(HOUSES.map((h) => [h.id, h]));
 export const houseById = (id) => BY_ID.get(id) || HOUSES[0];
