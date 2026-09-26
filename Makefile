@@ -13,7 +13,7 @@ help:
 	@echo "  make kill     Kill this project's HTTP server"
 	@echo "  make name     Names from the terminal: make name SEED=\"billing dashboard\" [HOUSE=balam] [SLOT=head] [COUNT=3]"
 	@echo "  make test     Engine, links and CLI checks, then the golden plates"
-	@echo "  make golden   Record the grammar's golden plates (only after bumping GRAMMAR)"
+	@echo "  make golden   Record new houses and pools; refuses a rename until GRAMMAR is bumped"
 	@echo ""
 
 # ── Dev server ────────────────────────────────────────────────────────────────
