@@ -6,14 +6,16 @@ import { state, save, stash, shareUrl, blankGarage, sanitizeGarage, VIEWS } from
 import { render } from './render.js';
 import { renderForge, rollStep } from './render-forge.js';
 import { renderGarage, renderHangar, syncBayRole } from './render-garage.js';
-import { garageRows, mountLabel, EMPTY_KEY } from './forge.js';
+import { forge, garageRows, mountLabel, EMPTY_KEY } from './forge.js';
 import { isWeapon, slot as slotDef } from './slots.js';
-import { toMarkdown, toJson, toText } from './export.js';
+import { forgeLink } from './links.js';
+import { toMarkdown, toJson, toText, badgeMarkdown, buildBadges, chatLine, wikiLine } from './export.js';
 import { ICONS } from './templates.js';
 import { $, showToast, copyText, download, slugify, debounce } from './utils.js';
 
 const persist = debounce(() => save(state), 300);
 const isFrame = (id) => slotDef(id).group === 'frame';
+const TOO_LONG = 'This build is too big for a link that opens: GitHub Pages refuses addresses over about 8,000 characters. Shorten the notes, or share the Markdown or JSON instead.';
 
 function setView(view) {
   if (!VIEWS.includes(view)) return;
@@ -57,9 +59,34 @@ function bindForge() {
   $('reroll').addEventListener('click', () => { f.roll += rollStep(f); refresh(); });
   $('prevRoll').addEventListener('click', () => { f.roll = Math.max(0, f.roll - rollStep(f)); refresh(); });
   $('plates').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-mount]');
-    if (b) mountPlate(b.dataset);
+    const plate = e.target.closest('.plate');
+    if (!plate) return;
+    const copy = e.target.closest('[data-plate-copy]');
+    if (copy) copyPlate(plate.dataset, copy.dataset.plateCopy, copy.closest('details'));
+    else if (e.target.closest('[data-mount]')) mountPlate(plate.dataset);
   });
+}
+
+// Each format tags its link, so arrivals from a README, a chat or a wiki are counted apart.
+const PLATE_COPIES = {
+  designation: ['Designation', (p) => p.designation],
+  badge: ['README badge', (p, link) => badgeMarkdown(p, link('readme'))],
+  chat: ['Chat line', (p, link) => chatLine(p, link('chat'))],
+  wiki: ['Wiki line', (p, link) => wikiLine(p, link('wiki'))],
+  link: ['Link', (p, link) => link('')],
+};
+
+/** Copy one plate in the format asked for. It is re-forged: the same inputs give the same plate. */
+async function copyPlate({ house, slot, roll }, kind, menu) {
+  const entry = PLATE_COPIES[kind];
+  if (!entry) return;
+  if (menu) { menu.open = false; menu.querySelector('summary').focus(); }
+  const seed = state.forge.seed;
+  const p = forge({ seed, house, slot, roll: Number(roll) || 0 });
+  const base = location.origin + location.pathname;
+  const link = (via) => forgeLink({ seed, house: p.house, slot: p.slot, roll: p.roll }, { base, via });
+  const ok = await copyText(entry[1](p, link));
+  showToast(ok ? `${entry[0]} copied.` : 'The browser blocked the copy. Select the text instead.');
 }
 
 // ── Garage ───────────────────────────────────────────────────
@@ -150,6 +177,8 @@ function newBuild() {
   $('buildName').focus();
 }
 
+const EXPORT_NAMES = { 'md-copy': 'Markdown table', badges: 'README badges', chat: 'Chat message', 'link-copy': 'Share link' };
+
 async function onExport(kind) {
   const menu = $('exportMenu');
   menu.open = false;
@@ -158,13 +187,20 @@ async function onExport(kind) {
   const rows = garageRows(g);
   if (!rows.length) { showToast('Nothing to export yet. Switch on at least one bay.'); return; }
   const title = g.name.trim() || 'Untitled build';
-  const link = shareUrl({ ...state, view: 'garage' });
-  if (kind === 'md-file') { download(`${slugify(title)}.md`, toMarkdown(title, rows), 'text/markdown'); return; }
-  if (kind === 'json-file') { download(`${slugify(title)}.json`, toJson(title, rows, link), 'application/json'); return; }
-  const text = { 'md-copy': toMarkdown(title, rows), 'text-copy': toText(title, rows), 'link-copy': link }[kind];
-  const what = { 'md-copy': 'Markdown', 'text-copy': 'Build text', 'link-copy': 'Share link' }[kind];
-  const ok = await copyText(text);
-  showToast(ok ? `${what} copied.` : 'The browser blocked the copy. Select the Markdown preview by hand instead.');
+  // Null when the build is too big for a link that opens; every format copes without one.
+  const link = (via = '') => shareUrl({ ...state, view: 'garage' }, { via });
+  if (kind === 'link-copy' && !link()) { showToast(TOO_LONG); return; }
+  if (kind === 'md-file') { download(`${slugify(title)}.md`, toMarkdown(title, rows, link()), 'text/markdown'); return; }
+  if (kind === 'json-file') { download(`${slugify(title)}.json`, toJson(title, rows, link()), 'application/json'); return; }
+  const make = {
+    'md-copy': () => toMarkdown(title, rows, link()),
+    badges: () => buildBadges(rows, link('readme') || ''),
+    chat: () => [toText(title, rows), link('chat')].filter(Boolean).join('\n'),
+    'link-copy': () => link(),
+  }[kind];
+  if (!make) return;
+  const ok = await copyText(make());
+  showToast(ok ? `${EXPORT_NAMES[kind]} copied.` : 'The browser blocked the copy. Select the Markdown preview by hand instead.');
 }
 
 function onHangarClick(e) {
@@ -212,13 +248,6 @@ function bindGarage() {
     const b = e.target.closest('[data-export]');
     if (b) onExport(b.dataset.export);
   });
-  // The panel hangs from the button's right edge; on a narrow screen that edge
-  // can sit near the left of the viewport, so flip it to open rightward.
-  $('exportMenu').addEventListener('toggle', (e) => {
-    const panel = e.currentTarget.querySelector('.dropdown__panel');
-    panel.classList.remove('dropdown__panel--start');
-    if (e.currentTarget.open && panel.getBoundingClientRect().left < 8) panel.classList.add('dropdown__panel--start');
-  });
   $('hangarList').addEventListener('click', onHangarClick);
 }
 
@@ -246,13 +275,28 @@ function bindPage() {
       showToast(ok ? `Copied ${c.dataset.copy}` : 'The browser blocked the copy. Select the text instead.');
     }
   });
+  // A panel hangs from its button; flip it to the other edge when it would leave
+  // the viewport. toggle does not bubble, so this listens in the capture phase.
+  document.addEventListener('toggle', (e) => {
+    const d = e.target;
+    if (!(d instanceof HTMLDetailsElement) || !d.classList.contains('dropdown')) return;
+    const panel = d.querySelector('.dropdown__panel');
+    panel.classList.remove('dropdown__panel--start', 'dropdown__panel--end');
+    if (!d.open) return;
+    const box = panel.getBoundingClientRect();
+    if (box.left < 8) panel.classList.add('dropdown__panel--start');
+    else if (box.right > innerWidth - 8) panel.classList.add('dropdown__panel--end');
+  }, true);
+  $('noticeClose').addEventListener('click', () => { state.notice = ''; $('linkNotice').hidden = true; });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const d = document.querySelector('details.dropdown[open]');
     if (d) { d.open = false; d.querySelector('summary').focus(); }
   });
   $('shareBtn').addEventListener('click', async () => {
-    const ok = await copyText(shareUrl(state));
+    const link = shareUrl(state);
+    if (!link) { showToast(TOO_LONG); return; }
+    const ok = await copyText(link);
     showToast(ok ? 'Link copied. It opens this exact view.' : 'The browser blocked the copy.');
   });
 }

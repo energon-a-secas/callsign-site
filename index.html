@@ -112,6 +112,10 @@
       </nav>
 
       <div class="shell__main">
+        <div class="notice" id="linkNotice" hidden>
+          <p id="linkNoticeText" role="status"></p>
+          <button type="button" class="btn btn--ghost btn--sm" id="noticeClose">Dismiss</button>
+        </div>
 
         <!-- ── Forge ─────────────────────────────────────────── -->
         <section id="view-forge" class="section" aria-labelledby="forge-title">
@@ -164,8 +168,9 @@
               <details class="dropdown" id="exportMenu">
                 <summary class="btn btn--primary btn--sm">Export</summary>
                 <div class="dropdown__panel" role="group" aria-label="Export this build">
-                  <button type="button" data-export="md-copy">Copy Markdown</button>
-                  <button type="button" data-export="text-copy">Copy as text</button>
+                  <button type="button" data-export="md-copy">Copy Markdown table</button>
+                  <button type="button" data-export="badges">Copy README badges</button>
+                  <button type="button" data-export="chat">Copy chat message</button>
                   <button type="button" data-export="link-copy">Copy share link</button>
                   <button type="button" data-export="md-file">Download .md</button>
                   <button type="button" data-export="json-file">Download .json</button>
@@ -215,12 +220,12 @@
   </main>
 
   <footer class="neo-footer" data-footer-mode="app">
-    Unofficial fan tool. Every name is generated in your browser and stays there.
+    Unofficial fan tool. Names are generated in your browser; README badges are drawn by shields.io.
     <template data-neo-disclaimer data-label="About the names" data-title="About Callsign">
       <p>Callsign is an unofficial fan project. It is not affiliated with, endorsed by, or connected to FromSoftware or Bandai Namco Entertainment. ARMORED CORE is a trademark of its owners.</p>
       <p>Each house borrows an in-game manufacturer's naming grammar: the shape of its codes and the kind of word they end in. The themes are patterns read off the part names, not anything the developers have stated. The words Callsign draws from are its own picks from public sources, such as entomologists' surnames, poets of the Basho school, German bird names, Chinese star names and Spanish vocabulary.</p>
       <p>In-game part names appear on the Houses page as reference examples only. The generator does not draw from them, and a roll that lands exactly on a real part's designation is rolled again.</p>
-      <p>Names come from what you type, worked out entirely in this browser. Builds you save live in this browser's local storage and nowhere else.</p>
+      <p>Names come from what you type, worked out entirely in this browser, and builds you save live in this browser's local storage. The one exception is a README badge: shields.io draws it from the name in its address, and GitHub fetches it through its image proxy, so a badge you paste sends that name to both.</p>
     </template>
   </footer>
 

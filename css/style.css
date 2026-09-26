@@ -570,6 +570,15 @@ button:active,
 }
 .btn--icon.btn--sm { min-width: var(--control-height-sm); }
 
+/* What a shared link could not reproduce: a newer grammar, an unknown id. */
+.notice {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3);
+  margin-bottom: var(--space-6); padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--accent-line); border-radius: var(--radius); background: var(--accent-wash);
+  font-size: var(--text-sm); color: var(--text-primary);
+}
+.notice p { max-width: 70ch; line-height: 1.5; }
+
 /* ── Rail ──────────────────────────────────────────────────── */
 .rail-btn {
   display: flex; align-items: center; gap: var(--space-3);
@@ -703,8 +712,11 @@ button:active,
   background: var(--bg); border: 1px solid var(--border-strong); border-radius: var(--radius);
   box-shadow: var(--shadow-card);
 }
-/* Set by events.js when the right-anchored panel would leave the viewport. */
+/* Set by events.js when a panel would leave the viewport. */
 .dropdown__panel--start { left: 0; right: auto; }
+/* A plate's menu sits at its left edge, so it opens rightward unless that overflows. */
+.dropdown--start .dropdown__panel { left: 0; right: auto; }
+.dropdown .dropdown__panel--end { left: auto; right: 0; }
 .dropdown__panel button {
   min-height: 36px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm);
   background: transparent; color: var(--text-secondary);
@@ -763,6 +775,7 @@ button:active,
 .hangar__name { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); min-width: 0; }
 .hangar__name strong { font-family: var(--mono); letter-spacing: 0.1em; }
 .hangar__name small { font-size: var(--text-xs); color: var(--text-muted); }
+.hangar__name .hangar__stale { color: var(--accent-bright); }
 .hangar__empty { font-size: var(--text-sm); color: var(--text-muted); }
 
 /* ── Houses ────────────────────────────────────────────────── */

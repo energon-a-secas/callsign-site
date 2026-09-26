@@ -1,9 +1,12 @@
 // ── State ────────────────────────────────────────────────────
 // One mutable object shared by every module. localStorage keeps the last
-// session and the hangar; the URL carries whatever is being shared.
+// session and the hangar; the URL carries whatever is being shared. The URL
+// formats themselves live in links.js, which the CLI shares.
 
 import { PARTS, WEAPONS, MOUNTS } from './slots.js';
 import { HOUSES } from './houses.js';
+import { GRAMMAR } from './forge.js';
+import { decode, forgeLink, garageLink } from './links.js';
 
 const STORAGE_KEY = 'callsign:v1';
 export const VIEWS = ['forge', 'garage', 'houses'];
@@ -41,6 +44,8 @@ export const state = {
   forge: { seed: '', house: 'all', slot: 'core', roll: 0 },
   garage: blankGarage(),
   hangar: [],
+  // What a shared link could not reproduce, said once above the views.
+  notice: '',
 };
 
 const str = (v, max = NOTE_MAX) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -91,7 +96,13 @@ export function loadSaved(s) {
     s.garage = sanitizeGarage(raw.garage) || s.garage;
     if (Array.isArray(raw.hangar)) {
       s.hangar = raw.hangar
-        .map((b) => ({ id: str(b?.id, 40), savedAt: Number(b?.savedAt) || 0, garage: sanitizeGarage(b?.garage) }))
+        .map((b) => ({
+          id: str(b?.id, 40),
+          savedAt: Number(b?.savedAt) || 0,
+          // Builds saved before grammars were numbered count as grammar 0.
+          grammar: Number.isInteger(b?.grammar) ? b.grammar : 0,
+          garage: sanitizeGarage(b?.garage),
+        }))
         .filter((b) => b.id && b.garage)
         .slice(0, HANGAR_MAX);
     }
@@ -102,7 +113,7 @@ export function loadSaved(s) {
 export function save(s) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      view: s.view, forge: s.forge, garage: s.garage, hangar: s.hangar,
+      grammar: GRAMMAR, view: s.view, forge: s.forge, garage: s.garage, hangar: s.hangar,
     }));
   } catch { /* quota exceeded or storage blocked */ }
 }
@@ -110,54 +121,51 @@ export function save(s) {
 /** Keep a copy of the current build in the hangar, newest first. */
 export function stash(s) {
   const id = `b${Date.now().toString(36)}`;
-  s.hangar = [{ id, savedAt: Date.now(), garage: structuredClone(s.garage) }, ...s.hangar].slice(0, HANGAR_MAX);
+  s.hangar = [{ id, savedAt: Date.now(), grammar: GRAMMAR, garage: structuredClone(s.garage) }, ...s.hangar]
+    .slice(0, HANGAR_MAX);
   return id;
 }
 
 // ── URL ──────────────────────────────────────────────────────
-// Base64url JSON for a build, plain params for a single forge roll.
 
-function encode(obj) {
-  let bin = '';
-  new TextEncoder().encode(JSON.stringify(obj)).forEach((b) => { bin += String.fromCharCode(b); });
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
+const FORGE_DEFAULTS = { seed: '', house: 'all', slot: 'core', roll: 0 };
+const quote = (v) => `"${String(v).slice(0, 24)}"`;
 
-function decode(text) {
-  try {
-    const bin = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
-  } catch { return null; }
-}
-
-/** Apply a shared link on top of the saved session. The link wins. */
+/** Apply a shared link on top of the saved session. The link wins, and what it could not carry is said. */
 export function readUrl(s) {
   const q = new URLSearchParams(location.search);
-  if (q.has('b')) {
-    const g = sanitizeGarage(decode(q.get('b')));
-    if (g) { s.garage = g; s.view = 'garage'; }
+  const notes = [];
+  const g = q.get('g');
+  if (g !== null && g !== String(GRAMMAR)) {
+    notes.push(`This link was made with Callsign grammar ${quote(g)}, and this page runs grammar ${GRAMMAR}, so the names below may differ from the ones that were shared.`);
   }
-  if (q.has('s') || q.has('h') || q.has('p')) {
-    s.forge = sanitizeForge({
-      seed: q.get('s') ?? '', house: q.get('h') ?? 'all', slot: q.get('p') ?? 'core', roll: Number(q.get('r')) || 0,
-    }, s.forge);
+  if (q.has('b')) {
+    const garage = sanitizeGarage(decode(q.get('b')));
+    if (garage) { s.garage = garage; s.view = 'garage'; }
+    else notes.push('The build in this link could not be read, so your own garage is shown instead.');
+  }
+  if (['s', 'h', 'p', 'r'].some((k) => q.has(k))) {
+    const house = q.get('h') ?? FORGE_DEFAULTS.house;
+    const slotId = q.get('p') ?? FORGE_DEFAULTS.slot;
+    // Unknown ids fall back to the defaults, never to this viewer's saved
+    // session, so one link shows the same page to everyone who opens it.
+    s.forge = sanitizeForge({ seed: q.get('s') ?? '', house, slot: slotId, roll: Number(q.get('r')) || 0 }, FORGE_DEFAULTS);
+    if (s.forge.house !== house) notes.push(`The link names a house Callsign does not have (${quote(house)}), so every house is shown.`);
+    if (s.forge.slot !== slotId) notes.push(`The link names a slot Callsign does not have (${quote(slotId)}), so Core is shown.`);
     s.view = 'forge';
   }
   const hash = location.hash.slice(1);
   if (VIEWS.includes(hash)) s.view = hash;
+  s.notice = notes.join(' ');
 }
 
-/** A link that reproduces what is on screen. */
-export function shareUrl(s) {
-  const u = new URL(location.origin + location.pathname);
-  if (s.view === 'garage') u.searchParams.set('b', encode(s.garage));
-  if (s.view === 'forge') {
-    const f = s.forge;
-    if (f.seed) u.searchParams.set('s', f.seed);
-    u.searchParams.set('h', f.house);
-    u.searchParams.set('p', f.slot);
-    if (f.roll) u.searchParams.set('r', String(f.roll));
-  }
+/** A link that reproduces what is on screen, or null when a build is too big for one. */
+export function shareUrl(s, { via = '' } = {}) {
+  const base = location.origin + location.pathname;
+  if (s.view === 'garage') return garageLink(s.garage, { base, via });
+  if (s.view === 'forge') return forgeLink(s.forge, { base, via });
+  const u = new URL(base);
+  if (via) u.searchParams.set('via', via);
   u.hash = s.view;
   return u.toString();
 }

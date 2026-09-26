@@ -50,8 +50,13 @@ export function invent(roles, rng) {
 /** "RAD" -> "Rolling Async Daemon". Empty string when there are no letters. */
 export function expand(letters, roles, rng) {
   const chars = String(letters || '').toUpperCase().replace(/[^A-Z]/g, '').split('');
+  const used = new Set();
   return chars.map((ch, i) => {
-    if (i < chars.length - 1) return pick(rng, MOD[ch]);
-    return roles.find((r) => r[0].toUpperCase() === ch) || pick(rng, NOUN[ch]);
+    if (i === chars.length - 1) return roles.find((r) => r[0].toUpperCase() === ch) || pick(rng, NOUN[ch]);
+    // A repeated letter (BBL) must not read "Burst Burst": skip a word already used.
+    const fresh = MOD[ch].filter((w) => !used.has(w));
+    const word = pick(rng, fresh.length ? fresh : MOD[ch]);
+    used.add(word);
+    return word;
   }).join(' ');
 }

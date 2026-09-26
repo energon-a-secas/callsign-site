@@ -85,4 +85,6 @@ const BY_ID = new Map([...PARTS, ...WEAPONS].map((s) => [s.id, s]));
 
 /** Look up a part or weapon class by id. */
 export const slot = (id) => BY_ID.get(id) || PARTS[0];
+/** True only for a slot this engine has; slot() falls back silently. */
+export const hasSlot = (id) => BY_ID.has(id);
 export const isWeapon = (id) => WEAPONS.some((w) => w.id === id);

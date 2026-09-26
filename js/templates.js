@@ -61,13 +61,23 @@ export function plateHtml(p, { compact = false } = {}) {
   const reads = p.expansion && !(compact && p.acronym.source === 'seed')
     ? `<p class="plate__reads">${compact ? 'Could read as' : 'Reads as'} <span>${escHtml(p.expansion)}</span></p>`
     : '';
-  return `<article class="plate${compact ? ' plate--compact' : ''}">
+  // The plate carries only what re-forges it; every copy format is built on demand.
+  return `<article class="plate${compact ? ' plate--compact' : ''}" data-house="${escHtml(p.house)}" data-slot="${escHtml(p.slot)}" data-roll="${p.roll}">
     <div class="plate__meta"><span>${escHtml(p.houseName)}</span><span>${escHtml(p.slotLabel)}</span></div>
     ${head}
     ${reads}
     <div class="plate__actions">
-      <button type="button" class="btn btn--ghost btn--sm" data-copy="${escHtml(p.designation)}">Copy</button>
-      <button type="button" class="btn btn--ghost btn--sm" data-mount data-house="${escHtml(p.house)}" data-slot="${escHtml(p.slot)}" data-roll="${p.roll}">Mount in garage</button>
+      <details class="dropdown dropdown--start">
+        <summary class="btn btn--ghost btn--sm">Copy</summary>
+        <div class="dropdown__panel" role="group" aria-label="Copy ${escHtml(p.designation)}">
+          <button type="button" data-plate-copy="designation">Designation</button>
+          <button type="button" data-plate-copy="badge">README badge</button>
+          <button type="button" data-plate-copy="chat">Chat line</button>
+          <button type="button" data-plate-copy="wiki">Wiki line</button>
+          <button type="button" data-plate-copy="link">Link</button>
+        </div>
+      </details>
+      <button type="button" class="btn btn--ghost btn--sm" data-mount>Mount in garage</button>
     </div>
   </article>`;
 }

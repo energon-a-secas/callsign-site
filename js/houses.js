@@ -166,9 +166,13 @@ export const HOUSES = [
     id: 'vcpl', name: 'VCPL', full: 'VCPL', group: 'specialists', tagline: 'Plasma',
     theme: 'Plasma and laser weapons only: a 7-series number whose middle digit says where it mounts (0 back, 6 arm, 7 melee), then a type code.',
     grammar: 'Vvc-7MN[TT]', canon: ['Vvc-760PR', 'Vvc-770LB', 'Vvc-706PM'], signature: 'plasma',
-    make({ rng, line, slot }) {
+    make({ rng, line, slot, partIndex, attempt }) {
       if (!slot.code) {
-        return { code: `Vvc-7${pick(line, [0, 6, 7])}${int(rng, 0, 9)}${pick(line, ['PR', 'LB', 'LS', 'LD', 'PM'])}`, name: '' };
+        // VCPL makes no frames. A frame's parts share mount and type and count up
+        // from one variant digit, so its four plates never collide with each other.
+        const mount = pick(line, [0, 6, 7]);
+        const variant = (int(line, 0, 9) + partIndex + attempt) % 10;
+        return { code: `Vvc-7${mount}${variant}${pick(line, ['PR', 'LB', 'LS', 'LD', 'PM'])}`, name: '' };
       }
       const mount = vcplMount(slot);
       const type = mount === 7 ? pick(rng, ['LB', 'LS'])
@@ -303,3 +307,5 @@ export const HOUSES = [
 
 const BY_ID = new Map(HOUSES.map((h) => [h.id, h]));
 export const houseById = (id) => BY_ID.get(id) || HOUSES[0];
+/** True only for a house this engine has; houseById() falls back silently. */
+export const hasHouse = (id) => BY_ID.has(id);

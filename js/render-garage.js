@@ -2,7 +2,7 @@
 // A full render builds the bays; a partial one only swaps plate output, so a
 // note input or a select never loses focus mid-edit.
 
-import { garageRows, buildIdentity } from './forge.js';
+import { garageRows, buildIdentity, GRAMMAR } from './forge.js';
 import { slot as slotDef } from './slots.js';
 import { toMarkdown } from './export.js';
 import { houseOptions, weaponOptions, chipsHtml, ICONS } from './templates.js';
@@ -67,7 +67,8 @@ export function renderHangar(s) {
     const id = buildIdentity(b.garage);
     const when = new Date(b.savedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     return `<li class="hangar__item">
-      <div class="hangar__name"><strong>${escHtml(id.acronym.three[0])}</strong><span>${escHtml(b.garage.name || 'Untitled build')}</span><small>${escHtml(when)}</small></div>
+      <div class="hangar__name"><strong>${escHtml(id.acronym.three[0])}</strong><span>${escHtml(b.garage.name || 'Untitled build')}</span><small>${escHtml(when)}</small>${b.grammar === GRAMMAR ? ''
+        : `<small class="hangar__stale">Saved under ${b.grammar ? `grammar ${b.grammar}` : 'an earlier grammar'}, so its names may have changed</small>`}</div>
       <div class="toolbar">
         <button type="button" class="btn btn--secondary btn--sm" data-hangar-load="${escHtml(b.id)}">Load</button>
         <button type="button" class="btn btn--ghost btn--sm" data-hangar-delete="${escHtml(b.id)}">Delete</button>

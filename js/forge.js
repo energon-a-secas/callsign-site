@@ -10,6 +10,14 @@ import { acronyms, words, usedWords, fixedAcronym } from './acronym.js';
 import { expand, invent } from './expand.js';
 import { isCanon } from './canon.js';
 
+/**
+ * The naming grammar this engine implements. The word pools, the house rules,
+ * the acronym lists and the canon hashes all feed it, so any edit that renames
+ * an existing plate is a new grammar: bump this, re-record tests/golden.json
+ * with `make golden`, and links made under the old number say so on arrival.
+ */
+export const GRAMMAR = 1;
+
 /** The key an empty input hashes to, in the forge and in the garage alike. */
 export const EMPTY_KEY = 'callsign';
 
@@ -23,14 +31,17 @@ function designationOf({ code, name, sep = ' ', nameFirst = false }) {
 }
 const normalise = (v) => String(v || '').trim().toLowerCase();
 
+/** Extra hash parts only when there is something to add, so attempt 0 keys cleanly. */
+const retry = (attempt, from = 1) => (attempt >= from ? [attempt] : []);
+
 /**
  * @param {object} o
  * @param {string} o.seed   words the acronym and reading come from
  * @param {string} [o.key]  what the randomness hashes; defaults to the seed
- * @param {string} o.house
- * @param {string} o.slot   part or weapon class id
+ * @param {string} o.house  a house id; an unknown one falls back to the first house
+ * @param {string} o.slot   part or weapon class id; an unknown one falls back to Head
  * @param {number} [o.roll]
- * @param {{key: string, roll: number}|null} [o.line]  shared draw for a matched frame
+ * @param {{key: string, roll: number, seed?: string}|null} [o.line]  shared draw for a matched frame
  */
 export function forge({ seed = '', key, house, slot, roll = 0, line = null }) {
   const h = houseById(house);
@@ -51,10 +62,10 @@ export function forge({ seed = '', key, house, slot, roll = 0, line = null }) {
   const roll1 = (attempt) => h.make({
     // Retries vary the plate's own draws first. Only a stubborn collision
     // also varies the shared line, which may split a matched frame.
-    rng: rngFrom('plate', k, h.id, s.id, roll, attempt || ''),
+    rng: rngFrom('plate', k, h.id, s.id, roll, ...retry(attempt)),
     line: line
-      ? rngFrom('line', line.key, h.id, line.roll, attempt > 5 ? attempt : '')
-      : rngFrom('line', k, h.id, s.id, roll, attempt > 5 ? attempt : ''),
+      ? rngFrom('line', line.key, h.id, line.roll, ...retry(attempt, 6))
+      : rngFrom('line', k, h.id, s.id, roll, ...retry(attempt, 6)),
     slot: s, weapon, partIndex, attempt,
     letters: stamp?.three[0] || '', words: line ? words(line.seed || '') : typed,
   });
@@ -62,7 +73,7 @@ export function forge({ seed = '', key, house, slot, roll = 0, line = null }) {
   // A roll that lands exactly on a real part's designation is rolled again.
   for (let attempt = 1; attempt < 10 && isCanon(designationOf(out)); attempt++) out = roll1(attempt);
   const designation = designationOf(out);
-  // A code-only house (Arquebus, Balam, VCPL) has no word to shorten, so with
+  // A code-only house (Arquebus, Furlong, VCPL) has no word to shorten, so with
   // nothing typed the reading comes first and the letters come from it.
   const invented = !own && !out.name ? invent(s.roles, rngFrom('inv', k, h.id, s.id, roll)) : '';
   const acronym = own
@@ -74,6 +85,7 @@ export function forge({ seed = '', key, house, slot, roll = 0, line = null }) {
     : invented || expand(lead, s.roles, rngFrom('exp', k, h.id, s.id, roll));
 
   return {
+    grammar: GRAMMAR,
     id: `${h.id}:${s.id}:${roll}`,
     seed, house: h.id, houseName: h.name, slot: s.id, slotLabel: s.label, roll, weapon,
     code: out.code, name: out.name || '', designation, nameFirst: Boolean(out.nameFirst), sep: out.sep ?? ' ',
@@ -125,7 +137,10 @@ export function buildIdentity(g) {
     seed: g.name, key: buildKey, house: g.frameHouse, slot: 'core', roll: g.frameRoll,
     line: { key: buildKey, roll: g.frameRoll, seed: g.name },
   });
-  return { acronym: plate.acronym, line: plate.name || plate.code, expansion: plate.expansion, houseName: plate.houseName };
+  return {
+    grammar: GRAMMAR, acronym: plate.acronym, line: plate.name || plate.code,
+    expansion: plate.expansion, houseName: plate.houseName,
+  };
 }
 
 export { mountLabel };

@@ -48,7 +48,9 @@ house keeps its own grammar, and the same words always give the same name.
 - **Matched frames** -- head, core, arms and legs share one line name, the way a game frame does, or switch to mixed parts
 - **Deterministic rolls** -- Reroll moves forward, Back moves back, and a share link reopens the exact build
 - **Export** -- a Markdown table for a README, JSON for a script, or plain text for a chat message
-- **Hangar** -- saved builds stay in this browser's local storage; nothing is sent anywhere
+- **Paste kit** -- every plate's Copy menu gives a README badge, a chat line, a wiki line or a link; a build copies its badges as one block
+- **Command line** -- `tools/callsign.mjs` runs the same engine from a terminal, for scripts and the neorgon-forge `callsign` skill
+- **Hangar** -- saved builds stay in this browser's local storage, marked when an older grammar made them
 
 ---
 
@@ -86,12 +88,35 @@ Palace enclosures.
 
 ---
 
+## Use it outside the page
+
+- **Links** -- `?s=<words>&h=<house>&p=<slot>&r=<roll>&g=1#forge` opens one plate as the first on the page, and `?b=<build>&g=1#garage` opens a whole build. The ids, the limits and the payload format are in [llms.txt](llms.txt).
+- **README badges** -- GitHub renders no iframe and no script, so the embed is an image: a [shields.io](https://shields.io) static badge that links back to the plate. shields.io draws it from the name in its address, and GitHub fetches it through its image proxy, so a pasted badge sends that name to both; nothing else leaves the browser.
+- **Command line** -- same engine, same names, no network:
+
+  ```bash
+  node tools/callsign.mjs forge "billing dashboard" --slot head --count 3 --json
+  node tools/callsign.mjs identity "billing platform"
+  node tools/callsign.mjs houses
+  make name SEED="release automation daemon" HOUSE=ibis SLOT=booster
+  ```
+
+  Exit 2 means an unknown house, slot or option; nothing is guessed.
+- **Claude Code** -- the `callsign` skill in [neorgon-forge](https://github.com/LucianoAdonis/neorgon-forge) finds a checkout of this repo, runs the command line and hands back three candidates with their links.
+
+### Grammar versions
+
+`GRAMMAR` in `js/forge.js` is stamped into every plate, export and link (`g=1`). `tests/golden.test.mjs` hashes every house and slot over fixed inputs and fails when an edit would rename a plate under the same number. Adding one word to a word pool renames about half of that house's plates, so a pool edit is a version bump: raise `GRAMMAR`, run `make golden`, and links made under the old number open with a notice instead of silently different names.
+
+---
+
 ## Running locally
 
 ES modules require an HTTP server (not `file://`):
 
 ```bash
 make serve    # http://localhost:8886
+make test     # engine, links and CLI checks, then the golden plates
 ```
 
 ---
@@ -116,11 +141,15 @@ callsign-site/
 │   ├── acronym.js        # 3 and 4 letter picks from your words or the name
 │   ├── expand.js         # Readings for letters that did not come from words
 │   ├── rng.js            # Seeded hash + PRNG
-│   ├── export.js         # Markdown, JSON and text
+│   ├── links.js          # The share-link contract: forge and garage URLs, base64url
+│   ├── export.js         # Markdown, JSON, text, README badges, chat and wiki lines
 │   ├── templates.js      # Shared HTML fragments
 │   ├── render*.js        # One module per view
 │   ├── events.js         # User interactions
 │   └── utils.js          # Copy, download, toast
+├── tools/callsign.mjs    # Command line over the same engine; also imported by the skill
+├── tests/                # engine.test.mjs, golden.test.mjs + golden.json
+├── llms.txt              # The link contract for agents
 ├── docs/architecture.mmd # Diagram source
 ├── CNAME
 ├── Makefile

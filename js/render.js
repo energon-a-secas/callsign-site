@@ -17,6 +17,8 @@ export function mount(s) {
 }
 
 export function render(s) {
+  $('linkNotice').hidden = !s.notice;
+  $('linkNoticeText').textContent = s.notice;
   for (const v of VIEWS) $(`view-${v}`).hidden = s.view !== v;
   document.querySelectorAll('[data-view]').forEach((b) => {
     if (b.dataset.view === s.view) b.setAttribute('aria-current', 'page');
