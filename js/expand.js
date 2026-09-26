@@ -37,6 +37,9 @@ const NOUN = bank({
   W: 'Watcher Warden Worker Workshop Wing', X: 'Xebec Xenolith', Y: 'Yard Yoke', Z: 'Zone Zenith',
 });
 
+/** The reading banks, for tests/golden.test.mjs: editing one renames plates. */
+export const BANKS = { MOD, NOUN };
+
 const COMMON = Object.keys(MOD).filter((ch) => !'JKQXYZ'.includes(ch));
 
 /** A reading for a code with no word in it: two modifiers and the slot's role. */

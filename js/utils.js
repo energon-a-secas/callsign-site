@@ -31,7 +31,8 @@ export function showToast(msg) {
   el.textContent = msg;
   el.classList.add('visible');
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => el.classList.remove('visible'), 2000);
+  // Long enough to read: about 45ms a character, between 2 and 8 seconds.
+  _toastTimer = setTimeout(() => el.classList.remove('visible'), Math.min(8000, Math.max(2000, msg.length * 45)));
 }
 
 /** Copy to the clipboard; falls back to a hidden textarea on older browsers. */

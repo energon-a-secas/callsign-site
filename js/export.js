@@ -44,6 +44,7 @@ export function toJson(title, rows, link) {
   }, null, 2);
 }
 
+/** Rows as aligned plain text; toChat adds what makes it reproducible. */
 export function toText(title, rows) {
   const w1 = Math.max(4, ...rows.map((r) => r.label.length));
   const w2 = Math.max(11, ...rows.map((r) => r.plate.designation.length));
@@ -51,6 +52,11 @@ export function toText(title, rows) {
     `${r.label.toUpperCase().padEnd(w1)}  ${r.plate.designation.padEnd(w2)}  ` +
     `${r.plate.acronym.three[0] || ''}${r.note ? `  (${r.note})` : ''}`);
   return [`${(title || 'Untitled build').toUpperCase()}`, ...out].join('\n');
+}
+
+/** A build for a chat message: the link when there is one, else the grammar that names it. */
+export function toChat(title, rows, link = '') {
+  return `${toText(title, rows)}\n${link || `Named with Callsign, grammar ${GRAMMAR}`}`;
 }
 
 // ── One plate ────────────────────────────────────────────────
@@ -85,7 +91,8 @@ export function buildBadges(rows, link = '') {
     const img = `![${`callsign: ${r.plate.designation}`.replace(/[[\]]/g, '')}](${badgeImage(r.plate)})`;
     return link ? `[${img}][callsign-build]` : img;
   });
-  return link ? `${images.join('\n')}\n\n[callsign-build]: ${link}` : images.join('\n');
+  // A build too big for a link still records the grammar that names it, where the README hides it.
+  return link ? `${images.join('\n')}\n\n[callsign-build]: ${link}` : `${images.join('\n')}\n\n<!-- Callsign grammar ${GRAMMAR} -->`;
 }
 
 const nameOf = (p) => (p.weapon ? p.designation : `${p.acronym.three[0]} (${p.designation})`);

@@ -15,24 +15,24 @@ Part slots name a project or a platform piece and answer to an acronym: `head` (
 
 Weapon slots name one tool or service each and answer to a name: `rifle`, `machinegun`, `gatling`, `shotgun`, `handgun`, `linear`, `sniper`, `bazooka`, `grenade`, `missile`, `flamer`, `laser`, `plasma`, `drone`, `blade`, `pilebunker`, `stun`, `shield`.
 
-House ids: `balam` `dafeng` `arquebus` `add` `schneider` `furlong` `vcpl` `melinite` `takigawa` `baws` `elcano` `rad` `allmind` `ibis` `ia`. `ibis` stamps the acronym of your own words into its designation, and `allmind` stamps your longest word, vowels dropped, into its weapon names.
+House ids: `balam` `dafeng` `arquebus` `add` `schneider` `furlong` `vcpl` `melinite` `takigawa` `baws` `elcano` `rad` `allmind` `ibis` `ia`. `ibis` stamps the acronym of your own words into its designation, and `allmind` stamps your longest word into its weapon names: vowels dropped, cut to four letters, when at least three are left.
 
 ## Deep links: open a name in someone's browser
 
 Build a link instead of describing a name by hand.
 
 - One plate: `https://callsign.neorgon.com/?via=agent&s=<words>&h=<house id|all>&p=<slot id>&r=<roll>&g=1#forge`
-  - `s` is the description, URL-encoded, up to 120 characters. Three or four capital letters on their own (`RAD`) are taken as the acronym itself; `rad` in lowercase is a word.
+  - `s` is the description, URL-encoded, up to 120 characters; the page reads only the first 120 and says so. Three or four capital letters on their own (`RAD`) are taken as the acronym itself; `rad` in lowercase is a word.
   - With one house the page shows six plates from roll `r` on, and the first is the plate the link names. With `h=all` it shows one plate per house at roll `r`.
-  - `r` is a whole number from 0 to 999999; leave it out for 0.
-- A whole build: `https://callsign.neorgon.com/?via=agent&b=<payload>&g=1#garage`. The payload is the garage JSON as base64url over its UTF-8 bytes with the padding stripped (Node: `Buffer.from(JSON.stringify(garage), 'utf8').toString('base64url')`). The garage shape is whatever the page's own share link carries; decode one to see it. Keep the whole URL under 8,000 characters: GitHub Pages refuses longer ones.
-- `g` is the grammar version. A link whose `g` differs from the page's grammar opens with a notice, because its names may have changed. An unknown house or slot id falls back to every house and to `core`, and the page says so.
+  - `r` is a whole number from 0 to 999999; leave it out for 0. Anything else opens roll 0 with a notice.
+- A whole build: `https://callsign.neorgon.com/?via=agent&b=<payload>&g=1#garage`. The payload is the garage JSON as base64url over its UTF-8 bytes with the padding stripped (Node: `Buffer.from(JSON.stringify(garage), 'utf8').toString('base64url')`). The garage shape is whatever the page's own share link carries (an object with `parts` and `weapons` arrays); decode one to see it. Keep the whole URL under 8,000 characters: GitHub Pages refuses longer ones. Opening a build link replaces the visitor's working build, so the page first keeps theirs in the hangar.
+- `g` is the grammar version. A link whose `g` differs from the page's grammar opens with a notice, because its names may have changed. A link that carries `s`, `h`, `p`, `r` or `b` but no `g` was made before grammars were numbered and counts as grammar 0. An unknown house or slot id falls back to every house and to `core`, and the page says so.
 - Add `via=<name>` to say who sent the visitor; it is counted, never shown. Agents and skills use `via=agent`. It belongs in the query, before the `#`.
 - When a name must never change, store the designation text, not the link.
 
 ## Command line and skill
 
-In a checkout of https://github.com/energon-a-secas/callsign-site, `node tools/callsign.mjs forge "billing dashboard" --house balam --slot head --json` prints the same plates as the page, with no network. `houses` and `slots` list the ids, `identity`, `garage` and `link` cover the rest, and exit code 2 means an unknown id or option. The neorgon-forge Claude Code plugin ships a `callsign` skill that runs this tool.
+In a checkout of https://github.com/energon-a-secas/callsign-site, with Node 22 LTS or later, `node tools/callsign.mjs forge "billing dashboard" --house balam --slot head --json` prints the same plates as the page, with no network. `houses` and `slots` list the ids, `identity`, `garage` and `link` cover the rest, and exit code 2 means an unknown id or option. It cuts a description to the 120 characters a link carries, so the plate it prints is the plate its link opens. The neorgon-forge Claude Code plugin ships a `callsign` skill that runs this tool.
 
 ## Terms
 

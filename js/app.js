@@ -7,14 +7,12 @@ import { bindEvents } from './events.js';
 
 function init() {
   loadSaved(state);
-  if (location.search) {
-    readUrl(state);
-    save(state);
-    // A shared link is applied once. Strip it so a reload keeps later edits.
-    history.replaceState(null, '', `${location.pathname}#${state.view}`);
-  } else {
-    readUrl(state);
-  }
+  readUrl(state);
+  // Saving at once keeps a shared link's build and restamps a session saved
+  // under an older grammar, so each notice is said once.
+  save(state);
+  // A shared link is applied once. Strip it so a reload keeps later edits.
+  if (location.search) history.replaceState(null, '', `${location.pathname}#${state.view}`);
   mount(state);
   render(state);
   bindEvents();

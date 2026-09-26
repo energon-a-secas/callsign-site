@@ -6,12 +6,12 @@
 import { PARTS, WEAPONS, MOUNTS } from './slots.js';
 import { HOUSES } from './houses.js';
 import { GRAMMAR } from './forge.js';
-import { decode, forgeLink, garageLink } from './links.js';
+import { decode, forgeLink, garageLink, linkGrammar, clip, SEED_MAX, ROLL_MAX } from './links.js';
 
 const STORAGE_KEY = 'callsign:v1';
 export const VIEWS = ['forge', 'garage', 'houses'];
 const HANGAR_MAX = 40;
-const NOTE_MAX = 120;
+const NOTE_MAX = SEED_MAX;
 
 const houseOk = (id, fallback) => (HOUSES.some((h) => h.id === id) ? id : fallback);
 const partIds = new Set(PARTS.map((p) => p.id));
@@ -44,12 +44,24 @@ export const state = {
   forge: { seed: '', house: 'all', slot: 'core', roll: 0 },
   garage: blankGarage(),
   hangar: [],
-  // What a shared link could not reproduce, said once above the views.
+  // What a shared link could not reproduce, said once above the views, and
+  // text to copy by hand when the browser blocked a copy.
   notice: '',
+  noticeText: '',
 };
 
-const str = (v, max = NOTE_MAX) => (typeof v === 'string' ? v.slice(0, max) : '');
-const roll = (v) => (Number.isInteger(v) && v >= 0 && v < 1e6 ? v : 0);
+// The grammar the stored session was saved under, so a build stashed from it keeps that mark.
+let savedGrammar = GRAMMAR;
+
+const str = (v, max = NOTE_MAX) => (typeof v === 'string' ? clip(v, max) : '');
+const roll = (v) => (Number.isInteger(v) && v >= 0 && v <= ROLL_MAX ? v : 0);
+
+/** A garage holding nothing typed: starting over loses nothing. */
+export const isBlank = (g) => !g.name.trim() && g.parts.every((p) => !p.note) && g.weapons.every((w) => !w.note);
+
+/** The shape of a garage object, as a link or a file carries it. Anything else is not a build. */
+export const isBuild = (raw) => Boolean(raw) && typeof raw === 'object'
+  && (Array.isArray(raw.parts) || Array.isArray(raw.weapons));
 
 /** Accept anything shaped like a garage, keep only what is valid. */
 export function sanitizeGarage(g) {
@@ -88,12 +100,18 @@ function sanitizeForge(f, base) {
 
 /** Load the last session and the hangar from localStorage. */
 export function loadSaved(s) {
+  savedGrammar = GRAMMAR;
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     if (!raw) return;
     if (VIEWS.includes(raw.view)) s.view = raw.view;
     s.forge = sanitizeForge(raw.forge, s.forge);
     s.garage = sanitizeGarage(raw.garage) || s.garage;
+    // A session saved before grammars were numbered counts as grammar 0.
+    savedGrammar = Number.isInteger(raw.grammar) ? raw.grammar : 0;
+    if (savedGrammar !== GRAMMAR && (s.forge.seed.trim() || !isBlank(s.garage))) {
+      s.notice = `Your last session was saved under ${savedGrammar ? `grammar ${savedGrammar}` : 'an earlier grammar'}, and this page runs grammar ${GRAMMAR}, so its names may have changed.`;
+    }
     if (Array.isArray(raw.hangar)) {
       s.hangar = raw.hangar
         .map((b) => ({
@@ -119,9 +137,9 @@ export function save(s) {
 }
 
 /** Keep a copy of the current build in the hangar, newest first. */
-export function stash(s) {
+export function stash(s, grammar = GRAMMAR) {
   const id = `b${Date.now().toString(36)}`;
-  s.hangar = [{ id, savedAt: Date.now(), grammar: GRAMMAR, garage: structuredClone(s.garage) }, ...s.hangar]
+  s.hangar = [{ id, savedAt: Date.now(), grammar, garage: structuredClone(s.garage) }, ...s.hangar]
     .slice(0, HANGAR_MAX);
   return id;
 }
@@ -135,28 +153,44 @@ const quote = (v) => `"${String(v).slice(0, 24)}"`;
 export function readUrl(s) {
   const q = new URLSearchParams(location.search);
   const notes = [];
-  const g = q.get('g');
+  const g = linkGrammar(q);
   if (g !== null && g !== String(GRAMMAR)) {
-    notes.push(`This link was made with Callsign grammar ${quote(g)}, and this page runs grammar ${GRAMMAR}, so the names below may differ from the ones that were shared.`);
+    const made = q.has('g') ? `was made with Callsign grammar ${quote(g)}` : 'was made before Callsign numbered its grammars';
+    notes.push(`This link ${made}, and this page runs grammar ${GRAMMAR}, so the names below may differ from the ones that were shared.`);
   }
   if (q.has('b')) {
-    const garage = sanitizeGarage(decode(q.get('b')));
-    if (garage) { s.garage = garage; s.view = 'garage'; }
-    else notes.push('The build in this link could not be read, so your own garage is shown instead.');
+    const raw = decode(q.get('b'));
+    if (isBuild(raw)) {
+      const garage = sanitizeGarage(raw);
+      // The link replaces the working build, so the viewer's own goes to the hangar first.
+      if (!isBlank(s.garage) && JSON.stringify(s.garage) !== JSON.stringify(garage)) {
+        stash(s, savedGrammar);
+        notes.push('Your own build was kept in the hangar.');
+      }
+      s.garage = garage;
+      s.view = 'garage';
+    } else {
+      notes.push('The build in this link could not be read, so your own garage is shown instead. Ask for the link again: chat apps sometimes cut long ones.');
+    }
   }
   if (['s', 'h', 'p', 'r'].some((k) => q.has(k))) {
     const house = q.get('h') ?? FORGE_DEFAULTS.house;
     const slotId = q.get('p') ?? FORGE_DEFAULTS.slot;
+    const seed = q.get('s') ?? '';
+    const r = q.get('r');
     // Unknown ids fall back to the defaults, never to this viewer's saved
     // session, so one link shows the same page to everyone who opens it.
-    s.forge = sanitizeForge({ seed: q.get('s') ?? '', house, slot: slotId, roll: Number(q.get('r')) || 0 }, FORGE_DEFAULTS);
+    s.forge = sanitizeForge({ seed, house, slot: slotId, roll: r === null ? 0 : Number(r) }, FORGE_DEFAULTS);
     if (s.forge.house !== house) notes.push(`The link names a house Callsign does not have (${quote(house)}), so every house is shown.`);
     if (s.forge.slot !== slotId) notes.push(`The link names a slot Callsign does not have (${quote(slotId)}), so Core is shown.`);
+    if (r !== null && s.forge.roll !== Number(r)) notes.push(`The link's roll (${quote(r)}) is not a whole number from 0 to ${ROLL_MAX}, so roll 0 is shown.`);
+    if (seed.length > SEED_MAX) notes.push(`The link's words run past ${SEED_MAX} characters, so only the first ${SEED_MAX} are used.`);
     s.view = 'forge';
   }
   const hash = location.hash.slice(1);
   if (VIEWS.includes(hash)) s.view = hash;
-  s.notice = notes.join(' ');
+  // A link that names something decides the page, so a note about the saved session would describe what is not shown.
+  s.notice = [g === null ? s.notice : '', ...notes].filter(Boolean).join(' ');
 }
 
 /** A link that reproduces what is on screen, or null when a build is too big for one. */

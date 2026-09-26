@@ -10,6 +10,26 @@ export const SITE = 'https://callsign.neorgon.com/';
 /** GitHub Pages answers 414 once a query reaches 8,192 characters; stay clear of it. */
 export const MAX_LINK = 8000;
 
+/** The most a link carries of one description or note; the page's inputs stop there too. */
+export const SEED_MAX = 120;
+
+/** The highest roll a link carries. The page reads anything else as roll 0. */
+export const ROLL_MAX = 999999;
+
+/** Cut text the way the page reads it, never leaving half of a surrogate pair. */
+export const clip = (text, max = SEED_MAX) => String(text).slice(0, max).replace(/[\uD800-\uDBFF]$/, '');
+
+/**
+ * The grammar a link was made under, as the text of its g. A link that carries
+ * a plate or a build but no g comes from before grammars were numbered, so it
+ * counts as grammar 0. Null when the link carries nothing to name.
+ */
+export function linkGrammar(query) {
+  const g = query.get('g');
+  if (g !== null) return g;
+  return ['s', 'h', 'p', 'r', 'b'].some((k) => query.has(k)) ? '0' : null;
+}
+
 /** JSON as base64url over its UTF-8 bytes, padding stripped. */
 export function encode(obj) {
   let bin = '';

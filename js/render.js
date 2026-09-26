@@ -16,9 +16,16 @@ export function mount(s) {
   $('frameHouse').innerHTML = houseOptions(s.garage.frameHouse);
 }
 
-export function render(s) {
+/** The notice above the views, and the text to copy by hand when a copy was blocked. */
+export function renderNotice(s) {
   $('linkNotice').hidden = !s.notice;
   $('linkNoticeText').textContent = s.notice;
+  $('noticeCopy').hidden = !s.noticeText;
+  $('noticeCopy').value = s.noticeText || '';
+}
+
+export function render(s) {
+  renderNotice(s);
   for (const v of VIEWS) $(`view-${v}`).hidden = s.view !== v;
   document.querySelectorAll('[data-view]').forEach((b) => {
     if (b.dataset.view === s.view) b.setAttribute('aria-current', 'page');

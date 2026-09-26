@@ -53,9 +53,13 @@ export function forge({ seed = '', key, house, slot, roll = 0, line = null }) {
   const acrRng = rngFrom('acr', k, h.id, s.id, roll);
   // Letters from your own words exist before the house stamps anything, so a
   // house whose grammar carries letters (IBIS, ALLMIND) can stamp yours.
-  const lettersOf = (text) => (words(text).length || fixedAcronym(text)
-    ? acronyms({ seed: text, name: '', roles: s.roles, rng: acrRng })
-    : null);
+  // Words too short to give three letters ('ui', 'qa') give none, so the name or
+  // an invented reading supplies them instead of the slot's role letters.
+  const lettersOf = (text) => {
+    if (!words(text).length && !fixedAcronym(text)) return null;
+    const found = acronyms({ seed: text, name: '', roles: s.roles, rng: acrRng });
+    return found.source === 'role' ? null : found;
+  };
   const own = lettersOf(seed);
   // A matched frame stamps the build's letters, so all four parts agree.
   const stamp = line ? lettersOf(line.seed || '') : own;
@@ -76,13 +80,17 @@ export function forge({ seed = '', key, house, slot, roll = 0, line = null }) {
   // A code-only house (Arquebus, Furlong, VCPL) has no word to shorten, so with
   // nothing typed the reading comes first and the letters come from it.
   const invented = !own && !out.name ? invent(s.roles, rngFrom('inv', k, h.id, s.id, roll)) : '';
+  const fromInvented = invented ? acronyms({ seed: invented, name: '', roles: s.roles, rng: acrRng }) : null;
+  // A reading whose initials give no usable letters (Cached Coherent Core) is
+  // dropped with them, so what a plate reads as always spells its letters.
   const acronym = own
-    || (invented
-      ? { ...acronyms({ seed: invented, name: '', roles: s.roles, rng: acrRng }), source: 'invented' }
+    || (fromInvented
+      ? { ...fromInvented, source: fromInvented.source === 'role' ? 'role' : 'invented' }
       : acronyms({ seed: '', name: out.word || out.name, roles: s.roles, rng: acrRng }));
   const lead = acronym.three[0];
   const expansion = acronym.source === 'seed' ? usedWords(typed, 3).map(title).join(' ')
-    : invented || expand(lead, s.roles, rngFrom('exp', k, h.id, s.id, roll));
+    : acronym.source === 'invented' ? invented
+      : expand(lead, s.roles, rngFrom('exp', k, h.id, s.id, roll));
 
   return {
     grammar: GRAMMAR,

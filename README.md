@@ -45,12 +45,12 @@ house keeps its own grammar, and the same words always give the same name.
 - **Fifteen houses** -- each in-game manufacturer's naming grammar, from Furlong's `BML-G1/P20MLT-04` codes and IBIS-style `IB-C03H: HAL 826` plates to entomologists' surnames, haiku poets and German birds
 - **Acronyms from your words** -- "release automation daemon" gives RAD; type RAD on its own and the houses that carry letters stamp it into their codes
 - **Garage** -- name a whole system as one build: the frame for the project, inner parts for the platform, four weapons for its tools
-- **Matched frames** -- head, core, arms and legs share one line name, the way a game frame does, or switch to mixed parts
+- **Matched frames** -- head, core, arms and legs share one line name, the way a game frame does (except Melinite, which names each part on its own), or switch to mixed parts
 - **Deterministic rolls** -- Reroll moves forward, Back moves back, and a share link reopens the exact build
 - **Export** -- a Markdown table for a README, JSON for a script, or plain text for a chat message
 - **Paste kit** -- every plate's Copy menu gives a README badge, a chat line, a wiki line or a link; a build copies its badges as one block
 - **Command line** -- `tools/callsign.mjs` runs the same engine from a terminal, for scripts and the neorgon-forge `callsign` skill
-- **Hangar** -- saved builds stay in this browser's local storage, marked when an older grammar made them
+- **Hangar** -- saved builds stay in this browser's local storage, marked when an older grammar made them; opening someone's build link keeps yours here first
 
 ---
 
@@ -91,8 +91,9 @@ Palace enclosures.
 ## Use it outside the page
 
 - **Links** -- `?s=<words>&h=<house>&p=<slot>&r=<roll>&g=1#forge` opens one plate as the first on the page, and `?b=<build>&g=1#garage` opens a whole build. The ids, the limits and the payload format are in [llms.txt](llms.txt).
-- **README badges** -- GitHub renders no iframe and no script, so the embed is an image: a [shields.io](https://shields.io) static badge that links back to the plate. shields.io draws it from the name in its address, and GitHub fetches it through its image proxy, so a pasted badge sends that name to both; nothing else leaves the browser.
-- **Command line** -- same engine, same names, no network:
+- **README badges** -- GitHub renders no iframe and no script, so the embed is an image: a [shields.io](https://shields.io) static badge that links back to the plate. shields.io draws it from the name in its address, and GitHub fetches it through its image proxy, so a pasted badge sends that name to both.
+- **What leaves the browser** -- names are worked out on the page and nothing is sent while you use it. What you share carries what it names: a link holds your words or the whole build in its address, so opening it sends them to GitHub Pages, which hosts the site, and a chat app that unfurls it fetches the same address.
+- **Command line** -- same engine, same names, no network (Node 22 LTS or later; 20.18 and older cannot load the engine from a plain clone):
 
   ```bash
   node tools/callsign.mjs forge "billing dashboard" --slot head --count 3 --json
@@ -101,12 +102,12 @@ Palace enclosures.
   make name SEED="release automation daemon" HOUSE=ibis SLOT=booster
   ```
 
-  Exit 2 means an unknown house, slot or option; nothing is guessed.
+  Exit 2 means an unknown house, slot or option; nothing is guessed. A description is cut to the 120 characters a link carries, so the plate printed is the plate its link opens.
 - **Claude Code** -- the `callsign` skill in [neorgon-forge](https://github.com/LucianoAdonis/neorgon-forge) finds a checkout of this repo, runs the command line and hands back three candidates with their links.
 
 ### Grammar versions
 
-`GRAMMAR` in `js/forge.js` is stamped into every plate, export and link (`g=1`). `tests/golden.test.mjs` hashes every house and slot over fixed inputs and fails when an edit would rename a plate under the same number. Adding one word to a word pool renames about half of that house's plates, so a pool edit is a version bump: raise `GRAMMAR`, run `make golden`, and links made under the old number open with a notice instead of silently different names.
+`GRAMMAR` in `js/forge.js` is stamped into every plate, export and link (`g=1`); a link with no `g` predates the numbering and counts as grammar 0. `tests/golden.test.mjs` hashes every house and slot over inputs that walk each acronym path, plus the word pools, canon hashes and reading banks themselves, and fails when an edit would rename a plate under the same number. Adding one word to a word pool renames about half of that house's plates, so a pool edit is a version bump: raise `GRAMMAR`, run `make golden`, and links made under the old number open with a notice instead of silently different names.
 
 ---
 

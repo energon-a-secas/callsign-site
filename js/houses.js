@@ -179,7 +179,10 @@ export const HOUSES = [
         : mount === 6 ? 'PR'
           : slot.id === 'drone' || slot.id === 'shield' || slot.id === 'stun' ? 'LD' : 'PM';
       // On a missile launcher the last digit is the cell count, or V for vertical.
-      const variant = type === 'PM' ? pick(rng, ['2', '3', '4', '6', '8', 'V']) : String(int(rng, 0, 9));
+      // Two of the six are real parts, so a retry steps to the next variant from
+      // one fixed start (line holds still for the first retries) and cannot miss.
+      const variants = type === 'PM' ? ['2', '3', '4', '6', '8', 'V'] : ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+      const variant = variants[(int(line, 0, variants.length - 1) + attempt) % variants.length];
       return { code: `Vvc-7${mount}${variant}${type}`, name: '' };
     },
   },

@@ -39,6 +39,9 @@ const CANON = new Set([
   4108844977, 4178650693, 4190677147, 4197388962, 4202810013, 4254202379, 4265159330,
 ]);
 
+/** Sorted, for tests/golden.test.mjs: an edit to this list is a grammar change. */
+export const CANON_HASHES = [...CANON].sort((a, b) => a - b);
+
 export const normalise = (s) => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '');
 
 export const isCanon = (designation) => CANON.has(hash32(normalise(designation)));

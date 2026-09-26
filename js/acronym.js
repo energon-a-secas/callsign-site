@@ -18,6 +18,9 @@ const BLOCKED = new Set(('ASS FUK FUC FCK SEX CUM FAG NIG KKK NAZ TIT DIK DIC CO
 
 const VOWELS = /[AEIOU]/;
 
+/** The word lists above, for tests/golden.test.mjs: editing one renames plates. */
+export const RULES = { stop: [...STOP], weak: [...WEAK], blocked: [...BLOCKED] };
+
 /** Split free text (including camelCase and kebab-case) into lowercase words. */
 export function words(text) {
   return String(text || '')
@@ -118,13 +121,15 @@ export function acronyms({ seed, name, roles, rng }) {
     return { source: 'fixed', three: [base], four: clean(four, 4).slice(0, 3) };
   }
   const typed = words(seed);
-  const source = typed.length ? 'seed' : 'name';
+  let source = typed.length ? 'seed' : 'name';
   const list = typed.length ? typed : words(name);
   let three = rank(clean(fromWords(list, 3), 3), source === 'name');
   let four = clean(fromWords(list, 4), 4);
   // A name with no letters in it (RaD's 24680) falls back to the slot's roles.
   if (!three.length) {
     three = clean([disemvowel(name || '').padEnd(3, 'X'), ...roles.map((r) => disemvowel(r).slice(0, 3)), 'XRV'], 3);
+    // These letters are the slot's, not the words' or the name's, and the source says so.
+    source = 'role';
   }
   // A 3-letter pick plus a role word always yields a readable 4-letter variant.
   four = clean([...four, ...roles.map((r) => three[0] + r[0])], 4);

@@ -2,20 +2,36 @@
 // Every listener, wired once. Handlers mutate state, then ask the owning view
 // for the smallest render that leaves focus where the user put it.
 
-import { state, save, stash, shareUrl, blankGarage, sanitizeGarage, VIEWS } from './state.js';
-import { render } from './render.js';
+import { state, save, stash, shareUrl, blankGarage, sanitizeGarage, isBlank, VIEWS } from './state.js';
+import { render, renderNotice } from './render.js';
 import { renderForge, rollStep } from './render-forge.js';
 import { renderGarage, renderHangar, syncBayRole } from './render-garage.js';
 import { forge, garageRows, mountLabel, EMPTY_KEY } from './forge.js';
 import { isWeapon, slot as slotDef } from './slots.js';
-import { forgeLink } from './links.js';
-import { toMarkdown, toJson, toText, badgeMarkdown, buildBadges, chatLine, wikiLine } from './export.js';
+import { forgeLink, clip, SEED_MAX, ROLL_MAX } from './links.js';
+import { toMarkdown, toJson, toChat, badgeMarkdown, buildBadges, chatLine, wikiLine } from './export.js';
 import { ICONS } from './templates.js';
 import { $, showToast, copyText, download, slugify, debounce } from './utils.js';
 
 const persist = debounce(() => save(state), 300);
 const isFrame = (id) => slotDef(id).group === 'frame';
+const frameLocked = (g) => g.parts.some((p) => isFrame(p.id) && p.locked);
 const TOO_LONG = 'This build is too big for a link that opens: GitHub Pages refuses addresses over about 8,000 characters. Shorten the notes, or share the Markdown or JSON instead.';
+
+/** Say something that has to stay on screen until it is dismissed, with text to copy by hand when there is some. */
+function showNotice(message, text = '') {
+  state.notice = message;
+  state.noticeText = text;
+  renderNotice(state);
+  $('linkNotice').scrollIntoView({ block: 'nearest' });
+  if (text) { $('noticeCopy').focus(); $('noticeCopy').select(); }
+}
+
+/** Copy, and when the browser refuses, put the text where it can be selected by hand. */
+async function copyOut(text, done) {
+  if (await copyText(text)) showToast(done);
+  else showNotice('The browser blocked the copy, so the text is below. Select it and copy it by hand.', text);
+}
 
 function setView(view) {
   if (!VIEWS.includes(view)) return;
@@ -30,8 +46,9 @@ function setView(view) {
 /** Put a forged plate into the garage, exactly as rolled, and lock it there. */
 function mountPlate({ house, slot, roll }) {
   const g = state.garage;
-  const note = state.forge.seed.trim().slice(0, 120);
-  const pin = { on: true, house, roll: Number(roll) || 0, note, key: note.toLowerCase() || EMPTY_KEY, locked: true };
+  const note = clip(state.forge.seed.trim(), SEED_MAX);
+  // A note hashes as itself, the way the forge hashes the seed; only an empty one needs the key.
+  const pin = { on: true, house, roll: Number(roll) || 0, note, key: note ? '' : EMPTY_KEY, locked: true };
   if (isWeapon(slot)) {
     const w = g.weapons.find((x) => !x.on && x.cls === slot) || g.weapons.find((x) => !x.on)
       || g.weapons.find((x) => !x.locked) || g.weapons[0];
@@ -41,7 +58,7 @@ function mountPlate({ house, slot, roll }) {
     const p = g.parts.find((x) => x.id === slot);
     if (!p) return;
     const broke = g.matched && isFrame(slot);
-    if (broke) setMatched(false, { quiet: true });
+    if (broke && !setMatched(false, { quiet: true })) return;
     Object.assign(p, pin);
     showToast(broke
       ? `Mounted on ${slotDef(slot).label}. The frame is now mixed parts, so each bay keeps its own house.`
@@ -53,10 +70,11 @@ function mountPlate({ house, slot, roll }) {
 function bindForge() {
   const f = state.forge;
   const refresh = () => { renderForge(state); persist(); };
-  $('seed').addEventListener('input', (e) => { f.seed = e.target.value.slice(0, 120); f.roll = 0; refresh(); });
+  $('seed').addEventListener('input', (e) => { f.seed = clip(e.target.value, SEED_MAX); f.roll = 0; refresh(); });
   $('slotSel').addEventListener('change', (e) => { f.slot = e.target.value; refresh(); });
   $('houseSel').addEventListener('change', (e) => { f.house = e.target.value; f.roll = 0; refresh(); });
-  $('reroll').addEventListener('click', () => { f.roll += rollStep(f); refresh(); });
+  // A link carries rolls up to ROLL_MAX, so every plate on screen has to stay under it.
+  $('reroll').addEventListener('click', () => { f.roll = Math.max(f.roll, Math.min(f.roll + rollStep(f), ROLL_MAX + 1 - rollStep(f))); refresh(); });
   $('prevRoll').addEventListener('click', () => { f.roll = Math.max(0, f.roll - rollStep(f)); refresh(); });
   $('plates').addEventListener('click', (e) => {
     const plate = e.target.closest('.plate');
@@ -85,8 +103,7 @@ async function copyPlate({ house, slot, roll }, kind, menu) {
   const p = forge({ seed, house, slot, roll: Number(roll) || 0 });
   const base = location.origin + location.pathname;
   const link = (via) => forgeLink({ seed, house: p.house, slot: p.slot, roll: p.roll }, { base, via });
-  const ok = await copyText(entry[1](p, link));
-  showToast(ok ? `${entry[0]} copied.` : 'The browser blocked the copy. Select the text instead.');
+  await copyOut(entry[1](p, link), `${entry[0]} copied.`);
 }
 
 // ── Garage ───────────────────────────────────────────────────
@@ -101,13 +118,22 @@ function bayOf(el) {
   return src ? { bay, src } : null;
 }
 
-/** Leaving a matched frame keeps its house on every bay that was following it. */
+/**
+ * Leaving a matched frame keeps its house on every frame bay. A locked matched
+ * frame is refused: its four names come from one shared draw, and mixed parts
+ * would roll each on its own and rename them. Returns whether the frame changed.
+ */
 function setMatched(on, { quiet = false } = {}) {
   const g = state.garage;
-  if (g.matched === on) return;
-  if (!on) for (const p of g.parts) if (isFrame(p.id) && !p.locked) p.house = g.frameHouse;
+  if (g.matched === on) return true;
+  if (!on && frameLocked(g)) {
+    showToast('The frame is locked as one line, so its parts cannot be split. Unlock it in the Garage first, then switch to mixed parts or mount the part.');
+    return false;
+  }
+  if (!on) for (const p of g.parts) if (isFrame(p.id)) p.house = g.frameHouse;
   g.matched = on;
   if (!quiet) { renderGarage(state, { full: true }); persist(); }
+  return true;
 }
 
 function rerollUnlocked() {
@@ -165,8 +191,6 @@ function onBayClick(e) {
   persist();
 }
 
-const isBlank = (g) => !g.name.trim() && g.parts.every((p) => !p.note) && g.weapons.every((w) => !w.note);
-
 function newBuild() {
   const kept = !isBlank(state.garage);
   if (kept) stash(state);
@@ -189,18 +213,17 @@ async function onExport(kind) {
   const title = g.name.trim() || 'Untitled build';
   // Null when the build is too big for a link that opens; every format copes without one.
   const link = (via = '') => shareUrl({ ...state, view: 'garage' }, { via });
-  if (kind === 'link-copy' && !link()) { showToast(TOO_LONG); return; }
+  if (kind === 'link-copy' && !link()) { showNotice(TOO_LONG); return; }
   if (kind === 'md-file') { download(`${slugify(title)}.md`, toMarkdown(title, rows, link()), 'text/markdown'); return; }
   if (kind === 'json-file') { download(`${slugify(title)}.json`, toJson(title, rows, link()), 'application/json'); return; }
   const make = {
     'md-copy': () => toMarkdown(title, rows, link()),
     badges: () => buildBadges(rows, link('readme') || ''),
-    chat: () => [toText(title, rows), link('chat')].filter(Boolean).join('\n'),
+    chat: () => toChat(title, rows, link('chat')),
     'link-copy': () => link(),
   }[kind];
   if (!make) return;
-  const ok = await copyText(make());
-  showToast(ok ? `${EXPORT_NAMES[kind]} copied.` : 'The browser blocked the copy. Select the Markdown preview by hand instead.');
+  await copyOut(make(), `${EXPORT_NAMES[kind]} copied.`);
 }
 
 function onHangarClick(e) {
@@ -270,10 +293,7 @@ function bindPage() {
       return;
     }
     const c = e.target.closest('[data-copy]');
-    if (c) {
-      const ok = await copyText(c.dataset.copy);
-      showToast(ok ? `Copied ${c.dataset.copy}` : 'The browser blocked the copy. Select the text instead.');
-    }
+    if (c) await copyOut(c.dataset.copy, `Copied ${c.dataset.copy}`);
   });
   // A panel hangs from its button; flip it to the other edge when it would leave
   // the viewport. toggle does not bubble, so this listens in the capture phase.
@@ -281,23 +301,34 @@ function bindPage() {
     const d = e.target;
     if (!(d instanceof HTMLDetailsElement) || !d.classList.contains('dropdown')) return;
     const panel = d.querySelector('.dropdown__panel');
-    panel.classList.remove('dropdown__panel--start', 'dropdown__panel--end');
+    panel.classList.remove('dropdown__panel--start', 'dropdown__panel--end', 'dropdown__panel--up');
     if (!d.open) return;
     const box = panel.getBoundingClientRect();
     if (box.left < 8) panel.classList.add('dropdown__panel--start');
     else if (box.right > innerWidth - 8) panel.classList.add('dropdown__panel--end');
+    // Near the bottom of the viewport it opens upward, when there is room above.
+    const top = d.querySelector('summary').getBoundingClientRect().top;
+    if (box.bottom > innerHeight - 8 && top - box.height - 6 > 8) panel.classList.add('dropdown__panel--up');
   }, true);
-  $('noticeClose').addEventListener('click', () => { state.notice = ''; $('linkNotice').hidden = true; });
+  // Tabbing out of an open menu closes it, so it never hides the next control.
+  // A click inside can blur with no relatedTarget (Safari), so only a known outside target counts.
+  document.addEventListener('focusout', (e) => {
+    const d = e.target.closest?.('details.dropdown[open]');
+    if (d && e.relatedTarget && !d.contains(e.relatedTarget)) d.open = false;
+  });
+  $('noticeClose').addEventListener('click', () => { state.notice = ''; state.noticeText = ''; renderNotice(state); });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const d = document.querySelector('details.dropdown[open]');
-    if (d) { d.open = false; d.querySelector('summary').focus(); }
+    if (!d) return;
+    const inside = d.contains(document.activeElement);
+    d.open = false;
+    if (inside) d.querySelector('summary').focus();
   });
   $('shareBtn').addEventListener('click', async () => {
     const link = shareUrl(state);
-    if (!link) { showToast(TOO_LONG); return; }
-    const ok = await copyText(link);
-    showToast(ok ? 'Link copied. It opens this exact view.' : 'The browser blocked the copy.');
+    if (!link) { showNotice(TOO_LONG); return; }
+    await copyOut(link, 'Link copied. It opens this exact view.');
   });
 }
 

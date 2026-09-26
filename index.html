@@ -115,6 +115,7 @@
         <div class="notice" id="linkNotice" hidden>
           <p id="linkNoticeText" role="status"></p>
           <button type="button" class="btn btn--ghost btn--sm" id="noticeClose">Dismiss</button>
+          <textarea class="notice__copy" id="noticeCopy" rows="5" readonly hidden aria-label="Text to copy"></textarea>
         </div>
 
         <!-- ── Forge ─────────────────────────────────────────── -->
@@ -220,12 +221,12 @@
   </main>
 
   <footer class="neo-footer" data-footer-mode="app">
-    Unofficial fan tool. Names are generated in your browser; README badges are drawn by shields.io.
+    Unofficial fan tool. Names are generated in your browser; a link carries your words, and README badges are drawn by shields.io.
     <template data-neo-disclaimer data-label="About the names" data-title="About Callsign">
       <p>Callsign is an unofficial fan project. It is not affiliated with, endorsed by, or connected to FromSoftware or Bandai Namco Entertainment. ARMORED CORE is a trademark of its owners.</p>
       <p>Each house borrows an in-game manufacturer's naming grammar: the shape of its codes and the kind of word they end in. The themes are patterns read off the part names, not anything the developers have stated. The words Callsign draws from are its own picks from public sources, such as entomologists' surnames, poets of the Basho school, German bird names, Chinese star names and Spanish vocabulary.</p>
       <p>In-game part names appear on the Houses page as reference examples only. The generator does not draw from them, and a roll that lands exactly on a real part's designation is rolled again.</p>
-      <p>Names come from what you type, worked out entirely in this browser, and builds you save live in this browser's local storage. The one exception is a README badge: shields.io draws it from the name in its address, and GitHub fetches it through its image proxy, so a badge you paste sends that name to both.</p>
+      <p>Names come from what you type, worked out entirely in this browser, and builds you save live in this browser's local storage. Nothing is sent while you work. What you share carries what it names: a link holds your words, or the whole build, in its address, so opening it sends them to GitHub Pages, which hosts this site, and a chat app that unfurls it fetches the same address. A README badge is drawn by shields.io from the name in its address, and GitHub fetches it through its image proxy, so a badge you paste sends that name to both.</p>
     </template>
   </footer>
 
